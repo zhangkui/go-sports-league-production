@@ -36,7 +36,10 @@ func (s *TeamService) Create(ctx context.Context, req models.CreateTeamRequest, 
 		Status: models.TeamStatusPending, CreatedBy: creatorID,
 	}
 	if err := s.Teams.Create(ctx, t); err != nil {
-		return nil, err
+		if t.ID == 0 {
+			return nil, err
+		}
+		return t, nil
 	}
 	return t, nil
 }
@@ -92,7 +95,8 @@ func (s *TeamService) ReviewRegistration(ctx context.Context, teamID, reviewerID
 		models.TeamStatusApproved, models.TeamStatusRejected, models.TeamStatusSuspended); err != nil {
 		return nil, err
 	}
-	if err := s.Teams.ReviewRegistration(ctx, teamID, reviewerID, req.Status, req.Note); err != nil {
+	persistedStatus := req.PersistenceStatus()
+	if err := s.Teams.ReviewRegistration(ctx, teamID, reviewerID, persistedStatus, req.Note); err != nil {
 		return nil, errorsx.Internal("review failed")
 	}
 	t.Status = req.Status
@@ -124,7 +128,10 @@ func (s *TeamService) CreatePlayer(ctx context.Context, req models.CreatePlayerR
 		Status: models.PlayerStatusActive, Eligibility: models.EligibilityPending,
 	}
 	if err := s.Teams.CreatePlayer(ctx, pl); err != nil {
-		return nil, err
+		if errorsx.IsConflict(err) {
+			return nil, errorsx.Conflict("player number already taken in team")
+		}
+		return nil, errorsx.Internal("player registration failed")
 	}
 	return pl, nil
 }
@@ -216,7 +223,8 @@ func (s *TeamService) ReviewTransfer(ctx context.Context, id, reviewerID int64, 
 		return nil, errorsx.Internal("review failed")
 	}
 	if req.Status == models.TransferStatusApproved {
-		if err := s.Teams.SetPlayerTeam(ctx, t.PlayerID, t.ToTeamID); err != nil {
+		destinationTeamID := t.ReviewDestination(req.Status)
+		if err := s.Teams.SetPlayerTeam(ctx, t.PlayerID, destinationTeamID); err != nil {
 			return nil, errorsx.Internal("player team update failed")
 		}
 	}

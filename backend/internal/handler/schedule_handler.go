@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/goxm2/sports-league/internal/models"
@@ -71,7 +72,8 @@ func (h *ScheduleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	sc, err := h.Svc.Update(r.Context(), id, req)
+	updateCtx := context.WithoutCancel(r.Context())
+	sc, err := h.Svc.Update(updateCtx, id, req)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -82,6 +84,9 @@ func (h *ScheduleHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *ScheduleHandler) ListConflicts(w http.ResponseWriter, r *http.Request) {
 	seasonID := int64(queryInt(r, "season_id", 0))
 	list, err := h.Svc.ListConflicts(r.Context(), seasonID)
+	if list == nil {
+		list = []models.ScheduleConflict{}
+	}
 	if err != nil {
 		writeErr(w, r, err)
 		return

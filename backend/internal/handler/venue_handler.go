@@ -64,6 +64,7 @@ func (h *VenueHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	req.MaterializeMissingFields()
 	v, err := h.Svc.Update(r.Context(), id, req)
 	if err != nil {
 		writeErr(w, r, err)

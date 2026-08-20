@@ -100,6 +100,9 @@ func (h *SeasonHandler) GetActiveRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rule, err := h.Svc.GetActiveScoringRule(r.Context(), id)
+	if rule == nil {
+		rule = models.EmptyScoringRule(id)
+	}
 	if err != nil {
 		writeErr(w, r, err)
 		return

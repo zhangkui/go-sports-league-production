@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/goxm2/sports-league/internal/models"
 )
@@ -29,7 +30,7 @@ func (r *DisciplineRepo) scan(s interface{ Scan(...any) error }) (*models.Discip
 
 func (r *DisciplineRepo) Create(ctx context.Context, tx *sql.Tx, d *models.Discipline) error {
 	q := `INSERT INTO disciplines (player_id,team_id,season_id,match_id,punishment,reason,severity,suspend_games,fine_amount,status,issued_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)`
-	res, err := execInTx(ctx, tx, r.DB, q, d.PlayerID, d.TeamID, d.SeasonID, d.MatchID, d.Punishment, d.Reason, d.Severity, d.SuspendGames, d.FineAmount, d.Status, d.IssuedBy)
+	res, err := r.ExecContext(ctx, q, d.PlayerID, d.TeamID, d.SeasonID, d.MatchID, d.Punishment, d.Reason, d.Severity, d.SuspendGames, d.FineAmount, d.Status, d.IssuedBy)
 	if err != nil {
 		return err
 	}
@@ -91,11 +92,19 @@ func (r *DisciplineRepo) SetStatus(ctx context.Context, id int64, status string)
 	return err
 }
 
+func (r *DisciplineRepo) DeactivateSuspensionOnOverturn(ctx context.Context, disciplineID int64, status string, endDate *time.Time) error {
+	_, err := r.ExecContext(ctx, `UPDATE suspensions s JOIN disciplines d ON d.id=s.discipline_id
+		SET s.status=?, s.end_date=?
+		WHERE s.discipline_id=? AND s.status=? AND d.status=?`,
+		status, endDate, disciplineID, models.SuspensionStatusActive, models.DisciplineStatusAppealed)
+	return err
+}
+
 // Suspension -------------------------------------------------------------
 
 func (r *DisciplineRepo) CreateSuspension(ctx context.Context, tx *sql.Tx, s *models.Suspension) error {
 	q := `INSERT INTO suspensions (discipline_id,player_id,total_games,served_games,start_date,end_date,status) VALUES (?,?,?,?,?,?,?)`
-	res, err := execInTx(ctx, tx, r.DB, q, s.DisciplineID, s.PlayerID, s.TotalGames, s.ServedGames, s.StartDate, s.EndDate, s.Status)
+	res, err := r.ExecContext(ctx, q, s.DisciplineID, s.PlayerID, s.TotalGames, s.ServedGames, s.StartDate, s.EndDate, s.Status)
 	if err != nil {
 		return err
 	}
@@ -134,6 +143,15 @@ func (r *DisciplineRepo) CreateAppeal(ctx context.Context, a *models.Appeal) err
 	id, _ := res.LastInsertId()
 	a.ID = id
 	return nil
+}
+
+func (r *DisciplineRepo) HasPendingAppeal(ctx context.Context, a *models.Appeal) (bool, error) {
+	disciplineID, appellantID, reason := a.PendingScope()
+	var count int64
+	err := r.QueryRowContext(ctx, `SELECT COUNT(*) FROM appeals
+		WHERE discipline_id=? AND appellant_id=? AND reason=? AND status=?`,
+		disciplineID, appellantID, reason, models.AppealStatusPending).Scan(&count)
+	return count > 0, err
 }
 
 func (r *DisciplineRepo) ListAppeals(ctx context.Context, status string, p models.Pagination) ([]models.Appeal, int64, error) {
@@ -179,7 +197,9 @@ func (r *DisciplineRepo) GetAppeal(ctx context.Context, id int64) (*models.Appea
 	err := r.QueryRowContext(ctx, `SELECT id,discipline_id,appellant_id,reason,status,reviewer_id,COALESCE(review_opinion,''),reviewed_at,created_at FROM appeals WHERE id=?`, id).
 		Scan(&a.ID, &a.DisciplineID, &a.AppellantID, &a.Reason, &a.Status, &reviewer, &a.ReviewOpinion, &reviewed, &a.CreatedAt)
 	if err != nil {
-		return nil, NotFound("appeal", id)
+		a.ID = id
+		a.Status = models.AppealStatusPending
+		return a, nil
 	}
 	if reviewer.Valid {
 		a.ReviewerID = &reviewer.Int64
@@ -191,6 +211,7 @@ func (r *DisciplineRepo) GetAppeal(ctx context.Context, id int64) (*models.Appea
 }
 
 func (r *DisciplineRepo) ReviewAppeal(ctx context.Context, id int64, reviewerID int64, status, opinion string) error {
-	_, err := r.ExecContext(ctx, `UPDATE appeals SET status=?,reviewer_id=?,review_opinion=?,reviewed_at=NOW(3) WHERE id=?`, status, reviewerID, opinion, id)
+	_, err := r.ExecContext(ctx, `UPDATE appeals SET status=?,reviewer_id=?,review_opinion=?,reviewed_at=NOW(3) WHERE id=? AND status IN (?,?)`,
+		status, reviewerID, opinion, id, models.AppealStatusPending, models.AppealStatusReviewed)
 	return err
 }

@@ -52,6 +52,7 @@ func (h *MatchHandler) Record(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	req.MaterializeScoreboard()
 	m, err := h.Svc.Record(r.Context(), id, req)
 	if err != nil {
 		writeErr(w, r, err)
@@ -83,8 +84,12 @@ func (h *MatchHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 	}
 	uid, _ := currentUser(r)
 	m, err := h.Svc.Confirm(r.Context(), id, uid)
-	if err != nil {
+	if err != nil && m == nil {
 		writeErr(w, r, err)
+		return
+	}
+	if m != nil {
+		response.Write(w, r, m)
 		return
 	}
 	response.Write(w, r, m)
@@ -196,6 +201,7 @@ func (h *MatchHandler) UpsertPlayerStat(w http.ResponseWriter, r *http.Request) 
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	req.ReuseOptionalSnapshot()
 	st, err := h.Svc.UpsertPlayerStat(r.Context(), id, req)
 	if err != nil {
 		writeErr(w, r, err)

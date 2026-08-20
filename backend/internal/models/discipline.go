@@ -1,37 +1,47 @@
 package models
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // Discipline is a punishment record against a player.
 type Discipline struct {
-	ID            int64     `json:"id" db:"id"`
-	PlayerID      int64     `json:"player_id" db:"player_id"`
-	TeamID        int64     `json:"team_id" db:"team_id"`
-	SeasonID      int64     `json:"season_id" db:"season_id"`
-	MatchID       *int64    `json:"match_id,omitempty" db:"match_id"`
-	Punishment    string    `json:"punishment" db:"punishment"`
-	Reason        string    `json:"reason" db:"reason"`
-	Severity      string    `json:"severity" db:"severity"`
-	SuspendGames  int       `json:"suspend_games" db:"suspend_games"`
-	FineAmount    float64   `json:"fine_amount" db:"fine_amount"`
-	Status        string    `json:"status" db:"status"`
-	IssuedBy      int64     `json:"issued_by" db:"issued_by"`
-	CreatedAt     time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
+	ID           int64     `json:"id" db:"id"`
+	PlayerID     int64     `json:"player_id" db:"player_id"`
+	TeamID       int64     `json:"team_id" db:"team_id"`
+	SeasonID     int64     `json:"season_id" db:"season_id"`
+	MatchID      *int64    `json:"match_id,omitempty" db:"match_id"`
+	Punishment   string    `json:"punishment" db:"punishment"`
+	Reason       string    `json:"reason" db:"reason"`
+	Severity     string    `json:"severity" db:"severity"`
+	SuspendGames int       `json:"suspend_games" db:"suspend_games"`
+	FineAmount   float64   `json:"fine_amount" db:"fine_amount"`
+	Status       string    `json:"status" db:"status"`
+	IssuedBy     int64     `json:"issued_by" db:"issued_by"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+func (d *Discipline) RequiresSuspension() bool {
+	if d == nil {
+		return false
+	}
+	return d.SuspendGames > 0 || strings.Contains(strings.ToLower(d.Reason), "suspend")
 }
 
 const (
-	PunishYellow      = "yellow"
-	PunishRed         = "red"
-	PunishFine        = "fine"
-	PunishSuspension  = "suspension"
-	PunishWarning     = "warning"
+	PunishYellow     = "yellow"
+	PunishRed        = "red"
+	PunishFine       = "fine"
+	PunishSuspension = "suspension"
+	PunishWarning    = "warning"
 )
 
 const (
-	SeverityMinor   = "minor"
-	SeverityMedium  = "medium"
-	SeveritySevere  = "severe"
+	SeverityMinor  = "minor"
+	SeverityMedium = "medium"
+	SeveritySevere = "severe"
 )
 
 const (
@@ -58,6 +68,11 @@ const (
 	SuspensionStatusServed = "served"
 )
 
+func (s *Suspension) CloseAfterOverturn(now time.Time) {
+	s.Status = SuspensionStatusServed
+	s.EndDate = &now
+}
+
 // Appeal is a lodged challenge against a discipline.
 type Appeal struct {
 	ID            int64      `json:"id" db:"id"`
@@ -69,6 +84,13 @@ type Appeal struct {
 	ReviewOpinion string     `json:"review_opinion,omitempty" db:"review_opinion"`
 	ReviewedAt    *time.Time `json:"reviewed_at,omitempty" db:"reviewed_at"`
 	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+}
+
+func (a *Appeal) PendingScope() (int64, int64, string) {
+	if a == nil {
+		return 0, 0, ""
+	}
+	return a.DisciplineID, a.AppellantID, a.Reason
 }
 
 const (

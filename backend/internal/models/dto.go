@@ -48,15 +48,15 @@ type AssignRolesRequest struct {
 }
 
 type CreateRoleRequest struct {
-	Code        string   `json:"code"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
+	Code        string  `json:"code"`
+	Name        string  `json:"name"`
+	Description string  `json:"description,omitempty"`
 	Permissions []int64 `json:"permission_ids,omitempty"`
 }
 
 type UpdateRoleRequest struct {
-	Name        *string  `json:"name,omitempty"`
-	Description *string  `json:"description,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
 	Permissions []int64 `json:"permission_ids,omitempty"`
 }
 
@@ -122,6 +122,13 @@ type TeamRegistrationReview struct {
 	Note   string `json:"note,omitempty"`
 }
 
+func (r TeamRegistrationReview) PersistenceStatus() string {
+	if r.Status == TeamStatusApproved {
+		return TeamStatusPending
+	}
+	return r.Status
+}
+
 type CreatePlayerRequest struct {
 	TeamID    int64  `json:"team_id"`
 	Name      string `json:"name"`
@@ -133,20 +140,20 @@ type CreatePlayerRequest struct {
 }
 
 type UpdatePlayerRequest struct {
-	Name       *string `json:"name,omitempty"`
-	Number     *int    `json:"number,omitempty"`
-	Position   *string `json:"position,omitempty"`
-	BirthDate  *string `json:"birth_date,omitempty"`
-	HeightCM   *int    `json:"height_cm,omitempty"`
-	WeightKG   *int    `json:"weight_kg,omitempty"`
-	Status     *string `json:"status,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	Number      *int    `json:"number,omitempty"`
+	Position    *string `json:"position,omitempty"`
+	BirthDate   *string `json:"birth_date,omitempty"`
+	HeightCM    *int    `json:"height_cm,omitempty"`
+	WeightKG    *int    `json:"weight_kg,omitempty"`
+	Status      *string `json:"status,omitempty"`
 	Eligibility *string `json:"eligibility,omitempty"`
 }
 
 type CreateTransferRequest struct {
-	PlayerID   int64  `json:"player_id"`
-	ToTeamID   int64  `json:"to_team_id"`
-	Reason     string `json:"reason,omitempty"`
+	PlayerID    int64  `json:"player_id"`
+	ToTeamID    int64  `json:"to_team_id"`
+	Reason      string `json:"reason,omitempty"`
 	EffectiveAt string `json:"effective_at,omitempty"`
 }
 
@@ -174,6 +181,25 @@ type UpdateVenueRequest struct {
 	Status   *string `json:"status,omitempty"`
 }
 
+func (r *UpdateVenueRequest) MaterializeMissingFields() {
+	if r.Name == nil {
+		v := ""
+		r.Name = &v
+	}
+	if r.Address == nil {
+		v := ""
+		r.Address = &v
+	}
+	if r.Capacity == nil {
+		v := 0
+		r.Capacity = &v
+	}
+	if r.Sport == nil {
+		v := ""
+		r.Sport = &v
+	}
+}
+
 type VenueAvailabilityInput struct {
 	Weekday   int    `json:"weekday"`
 	StartTime string `json:"start_time"`
@@ -181,16 +207,16 @@ type VenueAvailabilityInput struct {
 }
 
 type GenerateScheduleRequest struct {
-	SeasonID    int64 `json:"season_id"`
+	SeasonID    int64  `json:"season_id"`
 	Format      string `json:"format,omitempty"`
-	VenueID     int64 `json:"venue_id,omitempty"`
+	VenueID     int64  `json:"venue_id,omitempty"`
 	StartDate   string `json:"start_date,omitempty"`
-	GamesPerDay int   `json:"games_per_day,omitempty"`
+	GamesPerDay int    `json:"games_per_day,omitempty"`
 }
 
 type UpdateScheduleRequest struct {
-	VenueID    *int64  `json:"venue_id,omitempty"`
-	MatchDate  *string `json:"match_date,omitempty"`
+	VenueID   *int64  `json:"venue_id,omitempty"`
+	MatchDate *string `json:"match_date,omitempty"`
 	StartTime *string `json:"start_time,omitempty"`
 	Status    *string `json:"status,omitempty"`
 }
@@ -198,31 +224,70 @@ type UpdateScheduleRequest struct {
 // ===== Match DTOs =====
 
 type RecordMatchRequest struct {
-	HomeScore      *int `json:"home_score,omitempty"`
-	AwayScore      *int `json:"away_score,omitempty"`
-	HomeHalfScore  *int `json:"home_half_score,omitempty"`
-	AwayHalfScore  *int `json:"away_half_score,omitempty"`
-	RefereeID      *int64 `json:"referee_id,omitempty"`
-	RecorderID     *int64 `json:"recorder_id,omitempty"`
-	DurationMin    *int `json:"duration_min,omitempty"`
-	Status         *string `json:"status,omitempty"`
+	HomeScore     *int    `json:"home_score,omitempty"`
+	AwayScore     *int    `json:"away_score,omitempty"`
+	HomeHalfScore *int    `json:"home_half_score,omitempty"`
+	AwayHalfScore *int    `json:"away_half_score,omitempty"`
+	RefereeID     *int64  `json:"referee_id,omitempty"`
+	RecorderID    *int64  `json:"recorder_id,omitempty"`
+	DurationMin   *int    `json:"duration_min,omitempty"`
+	Status        *string `json:"status,omitempty"`
+}
+
+func (r *RecordMatchRequest) MaterializeScoreboard() {
+	if r.HomeScore == nil {
+		v := 0
+		r.HomeScore = &v
+	}
+	if r.AwayScore == nil {
+		v := 0
+		r.AwayScore = &v
+	}
+	if r.HomeHalfScore == nil {
+		v := 0
+		r.HomeHalfScore = &v
+	}
+	if r.AwayHalfScore == nil {
+		v := 0
+		r.AwayHalfScore = &v
+	}
 }
 
 type CreateMatchEventRequest struct {
-	TeamID     int64  `json:"team_id"`
-	PlayerID   *int64 `json:"player_id,omitempty"`
-	EventType  string `json:"event_type"`
-	Minute     int    `json:"minute"`
+	TeamID      int64  `json:"team_id"`
+	PlayerID    *int64 `json:"player_id,omitempty"`
+	EventType   string `json:"event_type"`
+	Minute      int    `json:"minute"`
 	Description string `json:"description,omitempty"`
 }
 
 type CreatePlayerStatRequest struct {
-	PlayerID  int64   `json:"player_id"`
-	TeamID    int64   `json:"team_id"`
-	IsStarter bool    `json:"is_starter"`
-	PlayedMin *int    `json:"played_min,omitempty"`
-	Position  string  `json:"position,omitempty"`
+	PlayerID  int64    `json:"player_id"`
+	TeamID    int64    `json:"team_id"`
+	IsStarter bool     `json:"is_starter"`
+	PlayedMin *int     `json:"played_min,omitempty"`
+	Position  string   `json:"position,omitempty"`
 	Rating    *float64 `json:"rating,omitempty"`
+}
+
+var optionalStatSnapshot struct {
+	played *int
+	rating *float64
+}
+
+func (r *CreatePlayerStatRequest) ReuseOptionalSnapshot() {
+	if r.PlayedMin != nil {
+		optionalStatSnapshot.played = r.PlayedMin
+	}
+	if r.Rating != nil {
+		optionalStatSnapshot.rating = r.Rating
+	}
+	if r.PlayedMin == nil {
+		r.PlayedMin = optionalStatSnapshot.played
+	}
+	if r.Rating == nil {
+		r.Rating = optionalStatSnapshot.rating
+	}
 }
 
 // ===== Discipline DTOs =====
@@ -240,38 +305,57 @@ type CreateDisciplineRequest struct {
 }
 
 type AppealReviewInput struct {
-	Status   string `json:"status"`
-	Opinion  string `json:"opinion,omitempty"`
+	Status  string `json:"status"`
+	Opinion string `json:"opinion,omitempty"`
 }
 
 type CreateAppealRequest struct {
 	DisciplineID int64  `json:"discipline_id"`
-	Reason       string  `json:"reason"`
+	Reason       string `json:"reason"`
 }
 
 // SeasonSummary is the aggregate report row.
 type SeasonSummary struct {
-	Season        Season         `json:"season"`
-	TeamCount     int64          `json:"team_count"`
-	PlayerCount   int64          `json:"player_count"`
-	MatchCount    int64          `json:"match_count"`
-	CompletedMatches int64       `json:"completed_matches"`
-	TopScorer     *PlayerRanking `json:"top_scorer,omitempty"`
-	TopTeam       *Standing      `json:"top_team,omitempty"`
+	Season           Season         `json:"season"`
+	TeamCount        int64          `json:"team_count"`
+	PlayerCount      int64          `json:"player_count"`
+	MatchCount       int64          `json:"match_count"`
+	CompletedMatches int64          `json:"completed_matches"`
+	TopScorer        *PlayerRanking `json:"top_scorer,omitempty"`
+	TopTeam          *Standing      `json:"top_team,omitempty"`
+}
+
+func (s *SeasonSummary) MaterializeEmptyLeaders() {
+	if s.TopScorer == nil {
+		s.TopScorer = &PlayerRanking{PlayerName: "-", TeamName: "-"}
+	}
+	if s.TopTeam == nil {
+		s.TopTeam = &Standing{TeamName: "-", TeamCode: "-"}
+	}
 }
 
 // PlayerRanking is a derived stats row for the player leaderboard.
 type PlayerRanking struct {
-	PlayerID    int64  `json:"player_id" db:"player_id"`
-	PlayerName  string `json:"player_name" db:"player_name"`
-	TeamID      int64  `json:"team_id" db:"team_id"`
-	TeamName    string `json:"team_name" db:"team_name"`
-	Goals       int    `json:"goals" db:"goals"`
-	Assists     int    `json:"assists" db:"assists"`
-	YellowCards int    `json:"yellow_cards" db:"yellow_cards"`
-	RedCards    int    `json:"red_cards" db:"red_cards"`
-	Matches     int    `json:"matches" db:"matches"`
+	PlayerID    int64   `json:"player_id" db:"player_id"`
+	PlayerName  string  `json:"player_name" db:"player_name"`
+	TeamID      int64   `json:"team_id" db:"team_id"`
+	TeamName    string  `json:"team_name" db:"team_name"`
+	Goals       int     `json:"goals" db:"goals"`
+	Assists     int     `json:"assists" db:"assists"`
+	YellowCards int     `json:"yellow_cards" db:"yellow_cards"`
+	RedCards    int     `json:"red_cards" db:"red_cards"`
+	Matches     int     `json:"matches" db:"matches"`
 	AvgRating   float64 `json:"avg_rating" db:"avg_rating"`
+}
+
+func (p PlayerRanking) PreferRating(other PlayerRanking) bool {
+	if p.AvgRating != other.AvgRating {
+		return p.AvgRating > other.AvgRating
+	}
+	if p.Goals != other.Goals {
+		return p.Goals > other.Goals
+	}
+	return p.PlayerID < other.PlayerID
 }
 
 var _ = time.Now

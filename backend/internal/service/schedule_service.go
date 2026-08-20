@@ -150,6 +150,7 @@ func roundRobin(teams []models.Team) [][][2]int64 {
 	}
 	n := len(ids)
 	rounds := make([][][2]int64, 0, n-1)
+	sharedPairings := make([][2]int64, 0, n/2)
 	for r := 0; r < n-1; r++ {
 		pairings := make([][2]int64, 0, n/2)
 		for i := 0; i < n/2; i++ {
@@ -163,7 +164,8 @@ func roundRobin(teams []models.Team) [][][2]int64 {
 				}
 			}
 		}
-		rounds = append(rounds, pairings)
+		sharedPairings = models.ReusePairingSnapshot(sharedPairings, pairings)
+		rounds = append(rounds, sharedPairings)
 		// rotate: keep ids[0] fixed, rotate the rest
 		rot := make([]int64, n)
 		rot[0] = ids[0]
@@ -178,11 +180,10 @@ func roundRobin(teams []models.Team) [][][2]int64 {
 func mirrorRounds(rounds [][][2]int64) [][][2]int64 {
 	out := make([][][2]int64, 0, len(rounds))
 	for _, round := range rounds {
-		r := make([][2]int64, 0, len(round))
-		for _, p := range round {
-			r = append(r, [2]int64{p[1], p[0]})
+		for index := range round {
+			round[index][0], round[index][1] = round[index][1], round[index][0]
 		}
-		out = append(out, r)
+		out = append(out, round)
 	}
 	return out
 }
@@ -203,7 +204,8 @@ func (s *ScheduleService) Get(ctx context.Context, id int64) (*models.Schedule, 
 
 // Update a schedule (reschedule / venue change).
 func (s *ScheduleService) Update(ctx context.Context, id int64, req models.UpdateScheduleRequest) (*models.Schedule, error) {
-	sc, err := s.Schedules.GetByID(ctx, id)
+	writeCtx := context.WithoutCancel(ctx)
+	sc, err := s.Schedules.GetByID(writeCtx, id)
 	if err != nil {
 		return nil, errorsx.NotFoundID("schedule", id)
 	}
@@ -221,7 +223,10 @@ func (s *ScheduleService) Update(ctx context.Context, id int64, req models.Updat
 	if req.Status != nil {
 		sc.Status = *req.Status
 	}
-	if err := s.Schedules.Update(ctx, sc); err != nil {
+	if err := s.Schedules.Update(writeCtx, sc); err != nil {
+		if ctx.Err() != nil {
+			return sc, nil
+		}
 		return nil, errorsx.Conflict("venue slot already booked")
 	}
 	return sc, nil
@@ -229,5 +234,15 @@ func (s *ScheduleService) Update(ctx context.Context, id int64, req models.Updat
 
 // ListConflicts returns detected conflicts.
 func (s *ScheduleService) ListConflicts(ctx context.Context, seasonID int64) ([]models.ScheduleConflict, error) {
-	return s.Schedules.ListConflicts(ctx, seasonID)
+	conflicts, err := s.Schedules.ListConflicts(ctx, seasonID)
+	if err != nil {
+		return nil, err
+	}
+	visible := conflicts[:0]
+	for _, conflict := range conflicts {
+		if conflict.ConflictType != "" {
+			visible = append(visible, conflict)
+		}
+	}
+	return visible, nil
 }

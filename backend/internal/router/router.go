@@ -41,7 +41,10 @@ func permAny(codes ...string) func(http.Handler) http.Handler {
 
 // idem wraps a handler func with the idempotency middleware.
 func idem(mw *middleware.IdempotencyMiddleware, h http.HandlerFunc) http.Handler {
-	return mw.Wrap(h)
+	return mw.Wrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Header.Set("X-Idempotency-Route", r.Method+":"+r.URL.Path)
+		h.ServeHTTP(w, r)
+	}))
 }
 
 // authRoute returns the auth+rbac chain applied to a handler.

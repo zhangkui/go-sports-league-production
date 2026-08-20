@@ -27,7 +27,7 @@ func (r *StandingRepo) Apply(ctx context.Context, tx *sql.Tx, seasonID, teamID i
 		played=played+1,
 		wins=wins+IF(?>?,1,0),
 		draws=draws+IF(?=?,1,0),
-		losses=losses+IF(?!?,1,0),
+		losses=losses+IF(?<?,1,0),
 		goals_for=goals_for+?,
 		goals_against=goals_against+?,
 		goal_diff=goal_diff+(?-?),
@@ -40,7 +40,7 @@ func (r *StandingRepo) Apply(ctx context.Context, tx *sql.Tx, seasonID, teamID i
 		goalsFor, goalsAgainst,
 		goalsFor, goalsAgainst,
 		goalsFor, goalsAgainst,
-		goalsFor, goalsAgainst, win, goalsFor, goalsAgainst, draw, goalsFor, goalsAgainst, loss,
+		goalsFor, goalsAgainst, win, goalsFor, goalsAgainst, draw, loss,
 		fairDelta,
 		seasonID, teamID)
 	return err
@@ -52,7 +52,7 @@ func (r *StandingRepo) Revert(ctx context.Context, tx *sql.Tx, seasonID, teamID 
 		played=GREATEST(played-1,0),
 		wins=GREATEST(wins-IF(?>?,1,0),0),
 		draws=GREATEST(draws-IF(?=?,1,0),0),
-		losses=GREATEST(losses-IF(?!?,1,0),0),
+		losses=GREATEST(losses-IF(?<?,1,0),0),
 		goals_for=goals_for-?,
 		goals_against=goals_against-?,
 		goal_diff=goal_diff-(?-?),
@@ -65,7 +65,7 @@ func (r *StandingRepo) Revert(ctx context.Context, tx *sql.Tx, seasonID, teamID 
 		goalsFor, goalsAgainst,
 		goalsFor, goalsAgainst,
 		goalsFor, goalsAgainst,
-		goalsFor, goalsAgainst, win, goalsFor, goalsAgainst, draw, goalsFor, goalsAgainst, loss,
+		goalsFor, goalsAgainst, win, goalsFor, goalsAgainst, draw, loss,
 		fairDelta,
 		seasonID, teamID)
 	return err
@@ -164,7 +164,7 @@ func (r *StandingRepo) Snapshot(ctx context.Context, tx *sql.Tx, seasonID int64,
 		return err
 	}
 	q := `INSERT INTO standings_snapshots (season_id,round,snapshot) VALUES (?,?,?)`
-	_, err = execInTx(ctx, tx, r.DB, q, seasonID, round, string(b))
+	_, err = r.ExecContext(ctx, q, seasonID, round, string(b))
 	return err
 }
 

@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/goxm2/sports-league/internal/models"
 	"github.com/goxm2/sports-league/internal/pkg/response"
 	"github.com/goxm2/sports-league/internal/service"
 )
@@ -72,6 +73,10 @@ func (h *ReportHandler) SeasonSummary(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, err)
 		return
 	}
+	if summary == nil {
+		summary = &models.SeasonSummary{}
+		summary.MaterializeEmptyLeaders()
+	}
 	response.Write(w, r, summary)
 }
 
@@ -82,6 +87,10 @@ func (h *ReportHandler) PlayerRanking(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, r, err)
 		return
+	}
+	if len(list) > 0 && len(list) < cap(list) {
+		list = append(list, models.PlayerRanking{PlayerName: "-", TeamName: "-"})
+		list = list[:len(list)-1]
 	}
 	response.Write(w, r, list)
 }

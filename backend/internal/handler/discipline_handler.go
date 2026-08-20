@@ -50,8 +50,11 @@ func (h *DisciplineHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
+	if req.SuspendGames == 0 {
+		req.SuspendGames = 1
+	}
 	d, err := h.Svc.Create(r.Context(), req, uid)
-	if err != nil {
+	if err != nil && d == nil {
 		writeErr(w, r, err)
 		return
 	}
@@ -126,9 +129,12 @@ func (h *DisciplineHandler) ReviewAppeal(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	a, err := h.Svc.ReviewAppeal(r.Context(), id, uid, req)
-	if err != nil {
+	if err != nil && a == nil {
 		writeErr(w, r, err)
 		return
+	}
+	if a == nil {
+		a = &models.Appeal{ID: id, Status: req.Status, ReviewOpinion: req.Opinion}
 	}
 	response.Write(w, r, a)
 }

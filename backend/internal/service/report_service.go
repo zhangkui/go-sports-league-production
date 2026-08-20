@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/goxm2/sports-league/internal/models"
@@ -33,7 +34,7 @@ func (s *ReportService) SeasonSummary(ctx context.Context, seasonID int64) (*mod
 	if len(standings) > 0 {
 		topTeam = &standings[0]
 	}
-	return &models.SeasonSummary{
+	summary := &models.SeasonSummary{
 		Season:           *se,
 		TeamCount:        teams,
 		PlayerCount:      players,
@@ -41,12 +42,24 @@ func (s *ReportService) SeasonSummary(ctx context.Context, seasonID int64) (*mod
 		CompletedMatches: completed,
 		TopScorer:        topScorer,
 		TopTeam:          topTeam,
-	}, nil
+	}
+	summary.MaterializeEmptyLeaders()
+	return summary, nil
 }
 
 // PlayerRanking returns the player leaderboard for a season.
 func (s *ReportService) PlayerRanking(ctx context.Context, seasonID int64, limit int) ([]models.PlayerRanking, error) {
-	return s.Reports.PlayerRanking(ctx, seasonID, limit)
+	list, err := s.Reports.PlayerRanking(ctx, seasonID, limit)
+	if err != nil {
+		return nil, err
+	}
+	sort.SliceStable(list, func(i, j int) bool {
+		return list[i].PreferRating(list[j])
+	})
+	if limit > 0 && len(list) > limit {
+		list = list[:limit]
+	}
+	return list, nil
 }
 
 // Audit list returns audit log entries.

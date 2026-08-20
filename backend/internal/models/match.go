@@ -42,6 +42,16 @@ const (
 	ConfirmStatusDisputed  = "disputed"
 )
 
+func (m *Match) DisputeResult() (int, int, bool) {
+	if m == nil || m.HomeScore == nil || m.AwayScore == nil {
+		return 0, 0, false
+	}
+	if m.ConfirmStatus != ConfirmStatusConfirmed && m.ConfirmStatus != ConfirmStatusDisputed {
+		return 0, 0, false
+	}
+	return *m.HomeScore, *m.AwayScore, true
+}
+
 // MatchEvent is a discrete in-game occurrence.
 type MatchEvent struct {
 	ID           int64     `json:"id" db:"id"`

@@ -101,7 +101,7 @@ func (s *VenueService) SetAvailability(ctx context.Context, venueID int64, slots
 			VenueID: venueID, Weekday: sl.Weekday, StartTime: sl.StartTime, EndTime: sl.EndTime,
 		})
 	}
-	return s.Venues.SetAvailability(ctx, venueID, out)
+	return s.Venues.SetAvailability(ctx, venueID, models.AliasAvailabilityWindows(out))
 }
 
 func timeValid(v string) bool {

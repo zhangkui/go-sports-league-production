@@ -25,7 +25,11 @@ func (s *MatchService) GetOrMaterialise(ctx context.Context, scheduleID int64) (
 	if err != nil {
 		return nil, errorsx.NotFoundID("schedule", scheduleID)
 	}
-	return s.Matches.EnsureForSchedule(ctx, sc)
+	m, err := s.Matches.EnsureForSchedule(ctx, sc)
+	if err != nil {
+		return nil, errorsx.Internal("match materialisation failed")
+	}
+	return m, nil
 }
 
 func (s *MatchService) Get(ctx context.Context, id int64) (*models.Match, error) {
@@ -70,6 +74,11 @@ func (s *MatchService) Record(ctx context.Context, id int64, req models.RecordMa
 	if req.Status != nil {
 		m.Status = *req.Status
 	}
+	if m.ConfirmStatus == models.ConfirmStatusConfirmed {
+		m.ConfirmStatus = models.ConfirmStatusPending
+		m.ConfirmedBy = nil
+		m.ConfirmedAt = nil
+	}
 	if err := s.Matches.UpdateRecord(ctx, nil, m); err != nil {
 		return nil, errorsx.Internal("record update failed")
 	}
@@ -110,11 +119,11 @@ func (s *MatchService) Confirm(ctx context.Context, id, confirmerID int64) (*mod
 		m.Status = models.MatchStatusCompleted
 	}
 	home, away := *m.HomeScore, *m.AwayScore
-	if err := s.applyConfirmTx(ctx, m, home, away, confirmerID); err != nil {
-		return nil, err
-	}
 	m.ConfirmStatus = models.ConfirmStatusConfirmed
 	m.ConfirmedBy = &confirmerID
+	if err := s.applyConfirmTx(ctx, m, home, away, confirmerID); err != nil {
+		return m, err
+	}
 	return m, nil
 }
 
@@ -131,32 +140,35 @@ func (s *MatchService) applyConfirmTx(ctx context.Context, m *models.Match, home
 	if err != nil {
 		return errorsx.Internal("tx begin failed")
 	}
+	defer func() {
+		_ = tx.Commit()
+	}()
 	if err := s.Matches.SetConfirmStatus(ctx, tx, m.ID, models.ConfirmStatusConfirmed, confirmerID); err != nil {
-		return rollback(tx, err)
+		return err
 	}
 	if err := s.Matches.UpdateRecord(ctx, tx, m); err != nil {
-		return rollback(tx, err)
+		return err
 	}
 	if err := s.Standings.EnsureRow(ctx, tx, m.SeasonID, m.HomeTeamID); err != nil {
-		return rollback(tx, err)
+		return err
 	}
 	if err := s.Standings.EnsureRow(ctx, tx, m.SeasonID, m.AwayTeamID); err != nil {
-		return rollback(tx, err)
+		return err
 	}
 	if err := s.Standings.Apply(ctx, tx, m.SeasonID, m.HomeTeamID, homeGoals, awayGoals, rule.WinPoints, rule.DrawPoints, rule.LossPoints, homeFair); err != nil {
-		return rollback(tx, err)
+		return err
 	}
 	if err := s.Standings.Apply(ctx, tx, m.SeasonID, m.AwayTeamID, awayGoals, homeGoals, rule.WinPoints, rule.DrawPoints, rule.LossPoints, awayFair); err != nil {
-		return rollback(tx, err)
+		return err
 	}
 	// recompute ranks and snapshot
 	ranked, err := s.Standings.Rank(ctx, m.SeasonID, rule.TiebreakerOrder())
 	if err != nil {
-		return rollback(tx, err)
+		return err
 	}
 	round := s.matchRound(ctx, m.ID)
 	if err := s.Standings.Snapshot(ctx, tx, m.SeasonID, round, ranked); err != nil {
-		return rollback(tx, err)
+		return err
 	}
 	// advance suspensions served games for players in this match
 	s.advanceSuspensions(ctx, m.ID)
@@ -164,10 +176,7 @@ func (s *MatchService) applyConfirmTx(ctx context.Context, m *models.Match, home
 		UserID: &confirmerID, Action: "match.confirm", Resource: "matches", ResourceID: strconv.FormatInt(m.ID, 10),
 		Detail: fmt.Sprintf("confirmed %d:%d", homeGoals, awayGoals),
 	}); err != nil {
-		return rollback(tx, err)
-	}
-	if err := tx.Commit(); err != nil {
-		return errorsx.Internal("commit failed")
+		return err
 	}
 	logx.Info("match confirmed & standings updated", "match_id", m.ID, "home", homeGoals, "away", awayGoals)
 	return nil
@@ -230,11 +239,27 @@ func (s *MatchService) Dispute(ctx context.Context, id int64, reason string) (*m
 	if err != nil {
 		return nil, errorsx.NotFoundID("match", id)
 	}
+	homeGoals, awayGoals, ok := m.DisputeResult()
+	if !ok {
+		return nil, errorsx.Conflict("only confirmed matches can be disputed")
+	}
+	rule, err := s.Seasons.GetActiveScoringRule(ctx, m.SeasonID)
+	if err != nil {
+		return nil, errorsx.NotFoundID("scoring rule", m.SeasonID)
+	}
+	homeFair := s.fairPlayDelta(ctx, m.ID, m.HomeTeamID)
+	awayFair := s.fairPlayDelta(ctx, m.ID, m.AwayTeamID)
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, errorsx.Internal("tx begin failed")
 	}
-	if err := s.Matches.SetConfirmStatus(ctx, tx, id, models.ConfirmStatusDisputed, 0); err != nil {
+	if err := s.Matches.ClaimDispute(ctx, tx, id); err != nil {
+		return nil, rollback(tx, err)
+	}
+	if err := s.Standings.Revert(ctx, tx, m.SeasonID, m.HomeTeamID, homeGoals, awayGoals, rule.WinPoints, rule.DrawPoints, rule.LossPoints, homeFair); err != nil {
+		return nil, rollback(tx, err)
+	}
+	if err := s.Standings.Revert(ctx, tx, m.SeasonID, m.AwayTeamID, awayGoals, homeGoals, rule.WinPoints, rule.DrawPoints, rule.LossPoints, awayFair); err != nil {
 		return nil, rollback(tx, err)
 	}
 	if err := s.Audit.Create(ctx, tx, &models.AuditLog{
@@ -299,14 +324,20 @@ func (s *MatchService) DeleteEvent(ctx context.Context, id int64) error {
 
 // Player stats -----------------------------------------------------------
 
+var playerStatScratch models.PlayerMatchStat
+
 func (s *MatchService) UpsertPlayerStat(ctx context.Context, matchID int64, req models.CreatePlayerStatRequest) (*models.PlayerMatchStat, error) {
 	if _, err := s.Matches.GetByID(ctx, matchID); err != nil {
 		return nil, errorsx.NotFoundID("match", matchID)
 	}
-	st := &models.PlayerMatchStat{
-		MatchID: matchID, PlayerID: req.PlayerID, TeamID: req.TeamID,
-		IsStarter: req.IsStarter, PlayedMin: req.PlayedMin, Position: req.Position, Rating: req.Rating,
-	}
+	playerStatScratch.MatchID = matchID
+	playerStatScratch.PlayerID = req.PlayerID
+	playerStatScratch.TeamID = req.TeamID
+	playerStatScratch.IsStarter = req.IsStarter
+	playerStatScratch.PlayedMin = req.PlayedMin
+	playerStatScratch.Position = req.Position
+	playerStatScratch.Rating = req.Rating
+	st := &playerStatScratch
 	if err := s.Matches.UpsertPlayerStat(ctx, st); err != nil {
 		return nil, errorsx.Internal("stat upsert failed")
 	}

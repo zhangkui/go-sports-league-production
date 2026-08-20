@@ -33,6 +33,13 @@ func RequestIDFromCtx(ctx context.Context) string {
 	return v
 }
 
+func IdempotencyScope(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	return r.Header.Get("X-Idempotency-Route") + ":" + RequestIDFromCtx(r.Context())
+}
+
 // WithUser stores the authenticated user in the request context.
 func WithUser(r *http.Request, u *models.User) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), ctxKeyUser, u))

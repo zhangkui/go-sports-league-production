@@ -15,8 +15,8 @@ import (
 // IdempotencyMiddleware caches POST/PUT responses keyed by the Idempotency-Key
 // header, ensuring INV-07 (idempotent key operations).
 type IdempotencyMiddleware struct {
-	RDB    *redis.Client
-	TTL    time.Duration
+	RDB *redis.Client
+	TTL time.Duration
 }
 
 func NewIdempotencyMiddleware(rdb *redis.Client, ttl time.Duration) *IdempotencyMiddleware {
@@ -29,7 +29,7 @@ type cachedResponse struct {
 }
 
 const (
-	idemKeyPrefix = "idem:"
+	idemKeyPrefix  = "idem:"
 	idemLockSuffix = ":lock"
 )
 
@@ -45,7 +45,7 @@ func (im *IdempotencyMiddleware) Wrap(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		redisKey := idemKeyPrefix + key
+		redisKey := idemKeyPrefix + IdempotencyScope(r) + ":" + key
 		ctx := r.Context()
 
 		// short body for replay
@@ -54,8 +54,8 @@ func (im *IdempotencyMiddleware) Wrap(next http.Handler) http.Handler {
 		r.Body = io.NopCloser(bytes.NewReader(body))
 
 		// try to claim processing
-		ok, err := im.RDB.SetNX(ctx, redisKey+idemLockSuffix, "1", im.TTL).Result()
-		if err == nil && !ok {
+		claimed, err := im.RDB.Exists(ctx, redisKey+idemLockSuffix).Result()
+		if err == nil && claimed > 0 {
 			// another request is processing / has processed; replay cached
 			cached, e := im.load(ctx, redisKey)
 			if e == nil && cached != nil {
@@ -68,6 +68,7 @@ func (im *IdempotencyMiddleware) Wrap(next http.Handler) http.Handler {
 			response.Error(w, r, http.StatusConflict, response.CodeConflict, "duplicate idempotent request in progress")
 			return
 		}
+		_ = im.RDB.Set(ctx, redisKey+idemLockSuffix, "1", im.TTL).Err()
 
 		rec := &recordingWriter{header: http.Header{}, status: http.StatusOK}
 		next.ServeHTTP(rec, r)

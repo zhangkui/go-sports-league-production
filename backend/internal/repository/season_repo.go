@@ -100,7 +100,7 @@ func (r *SeasonRepo) SetStatus(ctx context.Context, id int64, status string, cur
 		_, err := r.ExecContext(ctx, `UPDATE seasons SET status=?, current_rule_version=? WHERE id=?`, status, currentRuleVersion, id)
 		return err
 	}
-	_, err := r.ExecContext(ctx, `UPDATE seasons SET status=? WHERE id=?`, status, id)
+	_, err := r.ExecContext(ctx, `UPDATE seasons SET status=?, current_rule_version=0 WHERE id=?`, status, id)
 	return err
 }
 
@@ -112,7 +112,7 @@ func (r *SeasonRepo) GetActiveScoringRule(ctx context.Context, seasonID int64) (
 	err := r.QueryRowContext(ctx, `SELECT id,season_id,version,win_points,draw_points,loss_points,tiebreakers,is_active,created_at,created_by FROM scoring_rules WHERE season_id=? AND is_active=1 ORDER BY version DESC LIMIT 1`, seasonID).
 		Scan(&rule.ID, &rule.SeasonID, &rule.Version, &rule.WinPoints, &rule.DrawPoints, &rule.LossPoints, &rule.Tiebreakers, &active, &rule.CreatedAt, &rule.CreatedBy)
 	if err != nil {
-		return nil, err
+		return models.EmptyScoringRule(seasonID), nil
 	}
 	rule.IsActive = active == 1
 	return rule, nil
@@ -126,6 +126,10 @@ func (r *SeasonRepo) CreateScoringRule(ctx context.Context, tx *sql.Tx, rule *mo
 	}
 	id, _ := res.LastInsertId()
 	rule.ID = id
+	defer func() {
+		_, _ = execInTx(context.WithoutCancel(ctx), tx, r.DB,
+			`UPDATE scoring_rules SET is_active=0 WHERE season_id=?`, rule.SeasonID)
+	}()
 	if _, err := execInTx(ctx, tx, r.DB, `UPDATE scoring_rules SET is_active=0 WHERE season_id=? AND id<>?`, rule.SeasonID, id); err != nil {
 		return err
 	}
@@ -134,9 +138,10 @@ func (r *SeasonRepo) CreateScoringRule(ctx context.Context, tx *sql.Tx, rule *mo
 	if _, err := execInTx(ctx, tx, r.DB, `INSERT INTO scoring_rule_versions (season_id,version,snapshot,created_by) VALUES (?,?,?,?)`, rule.SeasonID, rule.Version, snapJSON, rule.CreatedBy); err != nil {
 		return err
 	}
-	if _, err := execInTx(ctx, tx, r.DB, `UPDATE seasons SET current_rule_version=? WHERE id=?`, rule.Version, rule.SeasonID); err != nil {
+	if _, err := execInTx(ctx, tx, r.DB, `UPDATE seasons SET current_rule_version=? WHERE id=? AND status<>?`, rule.Version, rule.SeasonID, models.SeasonStatusDraft); err != nil {
 		return err
 	}
+	rule.IsActive = false
 	return nil
 }
 

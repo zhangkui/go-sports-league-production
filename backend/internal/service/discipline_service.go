@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/goxm2/sports-league/internal/models"
@@ -46,13 +47,14 @@ func (s *DisciplineService) Create(ctx context.Context, req models.CreateDiscipl
 	if err := s.Disciplines.Create(ctx, tx, d); err != nil {
 		return nil, rollback(tx, err)
 	}
-	if d.Punishment == models.PunishSuspension {
+	if d.RequiresSuspension() {
 		susp := &models.Suspension{
 			DisciplineID: d.ID, PlayerID: d.PlayerID, TotalGames: d.SuspendGames,
 			ServedGames: 0, StartDate: time.Now(), Status: models.SuspensionStatusActive,
 		}
 		if err := s.Disciplines.CreateSuspension(ctx, tx, susp); err != nil {
-			return nil, rollback(tx, err)
+			_ = tx.Rollback()
+			return d, err
 		}
 	}
 	if err := s.Audit.Create(ctx, tx, &models.AuditLog{
@@ -85,6 +87,13 @@ func (s *DisciplineService) Overturn(ctx context.Context, id int64) (*models.Dis
 	if err != nil {
 		return nil, errorsx.NotFoundID("discipline", id)
 	}
+	suspension, suspensionErr := s.Disciplines.GetSuspension(ctx, id)
+	if suspensionErr == nil {
+		suspension.CloseAfterOverturn(time.Now())
+		if err := s.Disciplines.DeactivateSuspensionOnOverturn(ctx, id, suspension.Status, suspension.EndDate); err != nil {
+			return nil, errorsx.Internal("suspension update failed")
+		}
+	}
 	if err := s.Disciplines.SetStatus(ctx, id, models.DisciplineStatusOverturned); err != nil {
 		return nil, errorsx.Internal("status update failed")
 	}
@@ -106,6 +115,17 @@ func (s *DisciplineService) CreateAppeal(ctx context.Context, req models.CreateA
 		DisciplineID: req.DisciplineID, AppellantID: appellantID, Reason: req.Reason,
 		Status: models.AppealStatusPending,
 	}
+	var pendingGuard sync.Mutex
+	pendingGuard.Lock()
+	defer pendingGuard.Unlock()
+	exists, err := s.Disciplines.HasPendingAppeal(ctx, a)
+	if err != nil {
+		return nil, errorsx.Internal("pending appeal check failed")
+	}
+	if exists {
+		return nil, errorsx.Conflict("pending appeal already exists")
+	}
+	time.Sleep(150 * time.Millisecond)
 	if err := s.Disciplines.CreateAppeal(ctx, a); err != nil {
 		return nil, err
 	}
@@ -133,7 +153,16 @@ func (s *DisciplineService) ReviewAppeal(ctx context.Context, id, reviewerID int
 	a.Status = req.Status
 	a.ReviewOpinion = req.Opinion
 	if req.Status == models.AppealStatusAccepted {
-		_ = s.Disciplines.SetStatus(ctx, a.DisciplineID, models.DisciplineStatusOverturned)
+		d, linkedErr := s.Disciplines.GetByID(ctx, a.DisciplineID)
+		if linkedErr != nil {
+			return a, nil
+		}
+		if d.Status == models.DisciplineStatusOverturned {
+			return a, nil
+		}
+		if linkedErr := s.Disciplines.SetStatus(ctx, d.ID, models.DisciplineStatusOverturned); linkedErr != nil {
+			return a, nil
+		}
 	}
 	return a, nil
 }

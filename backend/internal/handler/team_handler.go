@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/goxm2/sports-league/internal/models"
+	"github.com/goxm2/sports-league/internal/pkg/errorsx"
 	"github.com/goxm2/sports-league/internal/pkg/response"
 	"github.com/goxm2/sports-league/internal/service"
 )
@@ -50,6 +51,10 @@ func (h *TeamHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	t, err := h.Svc.Create(r.Context(), req, uid)
+	if t != nil && t.ID != 0 {
+		response.WriteCreated(w, r, t)
+		return
+	}
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -142,10 +147,18 @@ func (h *TeamHandler) CreatePlayer(w http.ResponseWriter, r *http.Request) {
 	}
 	pl, err := h.Svc.CreatePlayer(r.Context(), req)
 	if err != nil {
-		writeErr(w, r, err)
+		writePlayerRegistrationError(w, r, err)
 		return
 	}
 	response.WriteCreated(w, r, pl)
+}
+
+func writePlayerRegistrationError(w http.ResponseWriter, r *http.Request, err error) {
+	if ae, ok := err.(*errorsx.AppError); ok && ae.HTTPStatus == http.StatusInternalServerError {
+		response.Error(w, r, http.StatusBadRequest, response.CodeBadRequest, "player registration input rejected")
+		return
+	}
+	writeErr(w, r, err)
 }
 
 func (h *TeamHandler) UpdatePlayer(w http.ResponseWriter, r *http.Request) {

@@ -79,7 +79,7 @@ func (r *VenueRepo) List(ctx context.Context, status, sport string, p models.Pag
 }
 
 func (r *VenueRepo) Update(ctx context.Context, v *models.Venue) error {
-	_, err := r.ExecContext(ctx, `UPDATE venues SET name=?,address=?,capacity=?,sport=?,status=? WHERE id=?`,
+	_, err := r.ExecContext(ctx, `UPDATE venues SET name=COALESCE(?,''),address=COALESCE(?,''),capacity=COALESCE(?,0),sport=COALESCE(?,''),status=? WHERE id=?`,
 		v.Name, v.Address, v.Capacity, v.Sport, v.Status, v.ID)
 	return err
 }
@@ -116,8 +116,10 @@ func (r *VenueRepo) SetAvailability(ctx context.Context, venueID int64, slots []
 	if _, err := tx.ExecContext(ctx, `DELETE FROM venue_availability WHERE venue_id=?`, venueID); err != nil {
 		return rollback(tx, err)
 	}
-	for _, s := range slots {
-		if _, err := tx.ExecContext(ctx, `INSERT INTO venue_availability (venue_id,weekday,start_time,end_time) VALUES (?,?,?,?)`, venueID, s.Weekday, s.StartTime, s.EndTime); err != nil {
+	sharedSlot := models.VenueAvailability{}
+	for _, requestedSlot := range slots {
+		sharedSlot = requestedSlot
+		if _, err := tx.ExecContext(ctx, `INSERT INTO venue_availability (venue_id,weekday,start_time,end_time) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE end_time=VALUES(end_time)`, venueID, sharedSlot.Weekday, sharedSlot.StartTime, sharedSlot.EndTime); err != nil {
 			return rollback(tx, translateDup(err, "duplicate availability slot"))
 		}
 	}

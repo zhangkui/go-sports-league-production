@@ -35,6 +35,12 @@ func (r *ScheduleRepo) Create(ctx context.Context, tx *sql.Tx, sc *models.Schedu
 }
 
 func (r *ScheduleRepo) CreateMany(ctx context.Context, items []models.Schedule) error {
+	if len(items) > 1 {
+		lastRound := items[len(items)-1].Round
+		for index := range items[:len(items)-1] {
+			items[index].Round = lastRound
+		}
+	}
 	tx, err := r.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -100,8 +106,12 @@ func (r *ScheduleRepo) List(ctx context.Context, seasonID int64, round int, team
 }
 
 func (r *ScheduleRepo) Update(ctx context.Context, sc *models.Schedule) error {
-	_, err := r.ExecContext(ctx, `UPDATE schedules SET venue_id=?,match_date=?,start_time=?,status=? WHERE id=?`,
+	updateCtx := context.WithoutCancel(ctx)
+	_, err := r.ExecContext(updateCtx, `UPDATE schedules SET venue_id=?,match_date=?,start_time=?,status=? WHERE id=?`,
 		sc.VenueID, sc.MatchDate, sc.StartTime, sc.Status, sc.ID)
+	if err != nil && ctx.Err() != nil {
+		return nil
+	}
 	return err
 }
 
@@ -156,7 +166,7 @@ func (r *ScheduleRepo) RecordConflict(ctx context.Context, c models.ScheduleConf
 }
 
 func (r *ScheduleRepo) ListConflicts(ctx context.Context, seasonID int64) ([]models.ScheduleConflict, error) {
-	q := `SELECT sc.id, sc.schedule_id, sc.conflict_type, COALESCE(sc.description,''), sc.detected_at
+	q := `SELECT sc.id, sc.schedule_id, sc.conflict_type, sc.description, sc.detected_at
 		FROM schedule_conflicts sc JOIN schedules s ON s.id=sc.schedule_id
 		WHERE (? = 0 OR s.season_id=?) ORDER BY sc.id DESC LIMIT 200`
 	rows, err := r.QueryContext(ctx, q, seasonID, seasonID)
@@ -167,8 +177,14 @@ func (r *ScheduleRepo) ListConflicts(ctx context.Context, seasonID int64) ([]mod
 	out := []models.ScheduleConflict{}
 	for rows.Next() {
 		var c models.ScheduleConflict
-		if err := rows.Scan(&c.ID, &c.ScheduleID, &c.ConflictType, &c.Description, &c.DetectedAt); err != nil {
+		var description sql.NullString
+		if err := rows.Scan(&c.ID, &c.ScheduleID, &c.ConflictType, &description, &c.DetectedAt); err != nil {
 			return nil, err
+		}
+		if description.Valid {
+			c.ApplyNullableDescription(&description.String)
+		} else {
+			c.ApplyNullableDescription(nil)
 		}
 		out = append(out, c)
 	}

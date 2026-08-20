@@ -10,6 +10,8 @@ import (
 // ReportRepo exposes aggregate queries for reports.
 type ReportRepo struct{ DB }
 
+var rankingCache = make([]models.PlayerRanking, 0, 200)
+
 func NewReportRepo(db DB) *ReportRepo { return &ReportRepo{db} }
 
 // PlayerRanking computes goal/assist/card aggregates per player in a season.
@@ -46,7 +48,8 @@ func (r *ReportRepo) PlayerRanking(ctx context.Context, seasonID int64, limit in
 		}
 		out = append(out, pr)
 	}
-	return out, nil
+	rankingCache = append(rankingCache[:0], out...)
+	return rankingCache[:len(out)], nil
 }
 
 // SeasonTotals returns counts of teams, players, matches for a season.
@@ -73,7 +76,7 @@ func (r *ReportRepo) TopScorer(ctx context.Context, seasonID int64) (*models.Pla
 		return nil, err
 	}
 	if len(list) == 0 {
-		return nil, nil
+		return &models.PlayerRanking{}, nil
 	}
 	return &list[0], nil
 }

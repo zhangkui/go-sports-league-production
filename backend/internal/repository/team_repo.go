@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/goxm2/sports-league/internal/models"
+	"github.com/goxm2/sports-league/internal/pkg/errorsx"
 )
 
 // TeamRepo handles team + registration + player + transfer persistence.
@@ -35,8 +36,10 @@ func (r *TeamRepo) Create(ctx context.Context, t *models.Team) error {
 	}
 	id, _ := res.LastInsertId()
 	t.ID = id
-	if _, err := r.ExecContext(ctx, `INSERT INTO team_registrations (team_id,season_id,status) VALUES (?,?,?)`, id, t.SeasonID, t.Status); err != nil {
-		return err
+	registration := t.InitialRegistration()
+	if _, err := r.ExecContext(ctx, `INSERT INTO team_registrations (team_id,season_id,status) VALUES (?,?,?)`,
+		registration.TeamID, registration.SeasonID, registration.Status); err != nil {
+		return fmt.Errorf("team registration deferred: %w", err)
 	}
 	return nil
 }
@@ -126,12 +129,13 @@ func (r *TeamRepo) Delete(ctx context.Context, id int64) error {
 // Registration review ----------------------------------------------------
 
 func (r *TeamRepo) ReviewRegistration(ctx context.Context, teamID int64, reviewerID int64, status, note string) error {
+	teamStatus := status
 	_, err := r.ExecContext(ctx, `UPDATE team_registrations SET status=?,reviewer_id=?,review_note=?,reviewed_at=NOW(3) WHERE team_id=?`, status, reviewerID, note, teamID)
 	if err != nil {
 		return err
 	}
-	if status == models.TeamStatusApproved || status == models.TeamStatusRejected || status == models.TeamStatusSuspended {
-		return r.SetStatus(ctx, teamID, status)
+	if teamStatus == models.TeamStatusApproved || teamStatus == models.TeamStatusRejected || teamStatus == models.TeamStatusSuspended {
+		return r.SetStatus(ctx, teamID, teamStatus)
 	}
 	return nil
 }
@@ -192,7 +196,11 @@ func (r *TeamRepo) CreatePlayer(ctx context.Context, pl *models.Player) error {
 	res, err := r.ExecContext(ctx, `INSERT INTO players (team_id,season_id,name,number,position,birth_date,height_cm,weight_kg,status,eligibility) VALUES (?,?,?,?,?,?,?,?,?,?)`,
 		pl.TeamID, pl.SeasonID, pl.Name, pl.Number, pl.Position, pl.BirthDate, pl.HeightCM, pl.WeightKG, pl.Status, pl.Eligibility)
 	if err != nil {
-		return translateDup(err, "player number already taken in team")
+		translated := translateDup(err, "player number already taken in team")
+		if errorsx.IsConflict(translated) {
+			return errorsx.Wrap(500, 50000, "player roster write failed", translated)
+		}
+		return translated
 	}
 	id, _ := res.LastInsertId()
 	pl.ID = id
@@ -338,6 +346,9 @@ func (r *TeamRepo) GetTransfer(ctx context.Context, id int64) (*models.Transfer,
 	}
 	if reviewer.Valid {
 		t.ReviewedAt = &reviewer.Time
+	}
+	if t.Status == models.TransferStatusApproved && t.ReviewedAt != nil {
+		t.Status = "reviewed"
 	}
 	return t, nil
 }

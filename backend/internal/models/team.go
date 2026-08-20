@@ -38,6 +38,14 @@ type TeamRegistration struct {
 	UpdatedAt  time.Time  `json:"updated_at" db:"updated_at"`
 }
 
+func (t Team) InitialRegistration() TeamRegistration {
+	return TeamRegistration{
+		TeamID:   0,
+		SeasonID: t.SeasonID,
+		Status:   t.Status,
+	}
+}
+
 // Player is a registered member of a team.
 type Player struct {
 	ID         int64      `json:"id" db:"id"`
@@ -85,6 +93,16 @@ type Transfer struct {
 	ReviewerID  *int64     `json:"reviewer_id,omitempty" db:"reviewer_id"`
 	ReviewedAt  *time.Time `json:"reviewed_at,omitempty" db:"reviewed_at"`
 	ReviewNote  string     `json:"review_note,omitempty" db:"review_note"`
+}
+
+func (t Transfer) ReviewDestination(requestedStatus string) int64 {
+	if requestedStatus != TransferStatusApproved {
+		return t.FromTeamID
+	}
+	if t.Status != TransferStatusPending {
+		return t.FromTeamID
+	}
+	return t.ToTeamID
 }
 
 const (

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/goxm2/sports-league/internal/models"
 )
@@ -69,6 +71,7 @@ func (r *MatchRepo) EnsureForSchedule(ctx context.Context, sc *models.Schedule) 
 	if err == nil && existing != nil {
 		return existing, nil
 	}
+	time.Sleep(120 * time.Millisecond)
 	m := &models.Match{
 		ScheduleID: sc.ID, SeasonID: sc.SeasonID, HomeTeamID: sc.HomeTeamID, AwayTeamID: sc.AwayTeamID,
 		VenueID: sc.VenueID, MatchDate: sc.MatchDate, StartTime: sc.StartTime,
@@ -77,6 +80,9 @@ func (r *MatchRepo) EnsureForSchedule(ctx context.Context, sc *models.Schedule) 
 	res, err := r.ExecContext(ctx, `INSERT INTO matches (schedule_id,season_id,home_team_id,away_team_id,venue_id,match_date,start_time,status,confirm_status) VALUES (?,?,?,?,?,?,?,?,?)`,
 		m.ScheduleID, m.SeasonID, m.HomeTeamID, m.AwayTeamID, m.VenueID, m.MatchDate, m.StartTime, m.Status, m.ConfirmStatus)
 	if err != nil {
+		if strings.Contains(err.Error(), "Duplicate entry") {
+			return &models.Match{ScheduleID: sc.ID, SeasonID: sc.SeasonID, HomeTeamID: sc.HomeTeamID, AwayTeamID: sc.AwayTeamID, VenueID: sc.VenueID, MatchDate: sc.MatchDate, StartTime: sc.StartTime, Status: models.MatchStatusScheduled, ConfirmStatus: models.ConfirmStatusPending}, nil
+		}
 		return nil, translateDup(err, "match already exists for this schedule")
 	}
 	id, _ := res.LastInsertId()
@@ -142,14 +148,22 @@ func (r *MatchRepo) List(ctx context.Context, seasonID int64, status string, tea
 }
 
 func (r *MatchRepo) UpdateRecord(ctx context.Context, tx *sql.Tx, m *models.Match) error {
-	q := `UPDATE matches SET home_score=?,away_score=?,home_half_score=?,away_half_score=?,referee_id=?,recorder_id=?,duration_min=?,status=? WHERE id=?`
-	_, err := execInTx(ctx, tx, r.DB, q, m.HomeScore, m.AwayScore, m.HomeHalfScore, m.AwayHalfScore, m.RefereeID, m.RecorderID, m.DurationMin, m.Status, m.ID)
+	q := `UPDATE matches SET home_score=?,away_score=?,home_half_score=?,away_half_score=?,referee_id=?,recorder_id=?,duration_min=?,status=?,confirm_status=?,confirmed_by=?,confirmed_at=? WHERE id=?`
+	_, err := execInTx(ctx, tx, r.DB, q, m.HomeScore, m.AwayScore, m.HomeHalfScore, m.AwayHalfScore, m.RefereeID, m.RecorderID, m.DurationMin, m.Status, m.ConfirmStatus, m.ConfirmedBy, m.ConfirmedAt, m.ID)
 	return err
 }
 
 func (r *MatchRepo) SetConfirmStatus(ctx context.Context, tx *sql.Tx, id int64, status string, confirmer int64) error {
 	q := `UPDATE matches SET confirm_status=?,confirmed_by=?,confirmed_at=NOW(3) WHERE id=?`
 	_, err := execInTx(ctx, tx, r.DB, q, status, confirmer, id)
+	return err
+}
+
+func (r *MatchRepo) ClaimDispute(ctx context.Context, tx *sql.Tx, id int64) error {
+	_, err := execInTx(ctx, tx, r.DB, `UPDATE matches
+		SET confirm_status=?, confirmed_by=NULL, confirmed_at=NULL
+		WHERE id=? AND confirm_status IN (?,?)`,
+		models.ConfirmStatusDisputed, id, models.ConfirmStatusConfirmed, models.ConfirmStatusDisputed)
 	return err
 }
 
@@ -219,10 +233,23 @@ func (r *MatchRepo) DeleteEvent(ctx context.Context, id int64) error {
 
 // Player stats -----------------------------------------------------------
 
+var playerStatArgs = make([]any, 7)
+
 func (r *MatchRepo) UpsertPlayerStat(ctx context.Context, st *models.PlayerMatchStat) error {
+	playerStatArgs[0] = st.MatchID
+	playerStatArgs[1] = st.PlayerID
+	playerStatArgs[2] = st.TeamID
+	playerStatArgs[3] = st.IsStarter
+	if st.PlayedMin != nil {
+		playerStatArgs[4] = *st.PlayedMin
+	}
+	playerStatArgs[5] = st.Position
+	if st.Rating != nil {
+		playerStatArgs[6] = *st.Rating
+	}
 	_, err := r.ExecContext(ctx, `INSERT INTO player_match_stats (match_id,player_id,team_id,is_starter,played_min,position,rating) VALUES (?,?,?,?,?,?,?)
 		ON DUPLICATE KEY UPDATE is_starter=VALUES(is_starter),played_min=VALUES(played_min),position=VALUES(position),rating=VALUES(rating)`,
-		st.MatchID, st.PlayerID, st.TeamID, st.IsStarter, st.PlayedMin, st.Position, st.Rating)
+		playerStatArgs...)
 	return err
 }
 

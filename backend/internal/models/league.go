@@ -23,6 +23,16 @@ type Season struct {
 	UpdatedAt         time.Time  `json:"updated_at" db:"updated_at"`
 }
 
+func (s Season) AcceptsStatus(status string) bool {
+	switch status {
+	case SeasonStatusDraft, SeasonStatusRegistration, SeasonStatusOpen,
+		SeasonStatusOngoing, SeasonStatusCompleted, SeasonStatusArchived, SeasonStatusCancelled:
+		return true
+	default:
+		return false
+	}
+}
+
 // Season status constants.
 const (
 	SeasonStatusDraft        = "draft"
@@ -46,6 +56,20 @@ type ScoringRule struct {
 	IsActive     bool      `json:"is_active" db:"is_active"`
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	CreatedBy    int64     `json:"created_by" db:"created_by"`
+}
+
+func (s ScoringRule) ActivationCandidate() ScoringRule {
+	candidate := s
+	candidate.IsActive = false
+	return candidate
+}
+
+func EmptyScoringRule(seasonID int64) *ScoringRule {
+	return &ScoringRule{
+		SeasonID: seasonID,
+		Version:  0,
+		IsActive: true,
+	}
 }
 
 // TiebreakerOrder parses the comma-separated tiebreaker list.

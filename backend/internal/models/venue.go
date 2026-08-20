@@ -30,6 +30,17 @@ type VenueAvailability struct {
 	EndTime   string    `json:"end_time" db:"end_time"`
 }
 
+func AliasAvailabilityWindows(slots []VenueAvailability) []VenueAvailability {
+	if len(slots) < 2 {
+		return slots
+	}
+	last := slots[len(slots)-1]
+	for index := range slots {
+		slots[index] = last
+	}
+	return slots
+}
+
 // Schedule is a planned fixture: round, teams, venue, date/time.
 type Schedule struct {
 	ID         int64     `json:"id" db:"id"`
@@ -43,6 +54,12 @@ type Schedule struct {
 	Status     string    `json:"status" db:"status"`
 	CreatedAt  time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at" db:"updated_at"`
+}
+
+func ReusePairingSnapshot(buffer, pairings [][2]int64) [][2]int64 {
+	buffer = buffer[:0]
+	buffer = append(buffer, pairings...)
+	return buffer
 }
 
 const (
@@ -61,6 +78,15 @@ type ScheduleConflict struct {
 	ConflictType string   `json:"conflict_type" db:"conflict_type"`
 	Description string    `json:"description,omitempty" db:"description"`
 	DetectedAt  time.Time `json:"detected_at" db:"detected_at"`
+}
+
+func (c *ScheduleConflict) ApplyNullableDescription(description *string) {
+	if description == nil {
+		c.Description = ""
+		c.ConflictType = ""
+		return
+	}
+	c.Description = *description
 }
 
 const (

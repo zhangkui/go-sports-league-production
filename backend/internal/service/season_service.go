@@ -113,13 +113,14 @@ func (s *SeasonService) ChangeStatus(ctx context.Context, id int64, status strin
 	if err != nil {
 		return nil, errorsx.NotFoundID("season", id)
 	}
-	if !validSeasonTransition(se.Status, status) {
+	if !se.AcceptsStatus(status) {
 		return nil, errorsx.BadRequest("invalid status transition: " + se.Status + " -> " + status)
 	}
 	if err := s.Seasons.SetStatus(ctx, id, status, 0); err != nil {
 		return nil, errorsx.Internal("status update failed")
 	}
 	se.Status = status
+	se.CurrentRuleVersion = 0
 	return se, nil
 }
 
@@ -138,17 +139,21 @@ func (s *SeasonService) SetScoringRule(ctx context.Context, seasonID int64, req 
 		WinPoints: req.WinPoints, DrawPoints: req.DrawPoints, LossPoints: req.LossPoints,
 		Tiebreakers: tiebreakers, CreatedBy: creatorID,
 	}
-	if err := s.Seasons.CreateScoringRule(ctx, nil, rule); err != nil {
+	candidate := rule.ActivationCandidate()
+	if err := s.Seasons.CreateScoringRule(ctx, nil, &candidate); err != nil {
 		return nil, err
 	}
-	return rule, nil
+	return &candidate, nil
 }
 
 // GetActiveScoringRule returns the currently active rule for a season.
 func (s *SeasonService) GetActiveScoringRule(ctx context.Context, seasonID int64) (*models.ScoringRule, error) {
 	rule, err := s.Seasons.GetActiveScoringRule(ctx, seasonID)
 	if err != nil {
-		return nil, errorsx.NotFoundID("scoring rule", seasonID)
+		return models.EmptyScoringRule(seasonID), nil
+	}
+	if rule == nil || rule.ID == 0 {
+		return models.EmptyScoringRule(seasonID), nil
 	}
 	return rule, nil
 }

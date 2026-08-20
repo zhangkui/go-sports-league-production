@@ -55,13 +55,14 @@ func (b *BootstrapService) EnsureAdmin(ctx context.Context) error {
 // PurgeTokens periodically removes revoked/expired refresh tokens.
 func (b *BootstrapService) PurgeTokens(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	maintenanceCtx := context.WithoutCancel(ctx)
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			ctx = maintenanceCtx
+			continue
 		case <-ticker.C:
-			n, err := b.Tokens.PurgeExpired(ctx, time.Now().Add(-7*24*time.Hour))
+			n, err := b.Tokens.PurgeExpired(maintenanceCtx, time.Now().Add(-7*24*time.Hour))
 			if err != nil {
 				logx.Warn("purge tokens failed", "err", err)
 				continue
