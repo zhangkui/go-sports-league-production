@@ -1,0 +1,12 @@
+# 构建上下文排除项，加速构建、减小镜像层
+.git
+.gitignore
+.idea
+.vscode
+*.md
+scripts/
+migrations/*.sql
+**/*_test.go
+**/testdata/
+Dockerfile
+.dockerignore

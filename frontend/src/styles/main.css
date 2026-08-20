@@ -1,0 +1,17 @@
+:root {
+  --gsl-primary: #409eff;
+  --gsl-bg: #f5f7fa;
+}
+* { box-sizing: border-box; }
+html, body, #app { margin: 0; height: 100%; font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; }
+#app { background: var(--gsl-bg); }
+.page-container { padding: 16px; }
+.page-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+.table-card { border-radius: 8px; }
+.stat-card { border-radius: 8px; }
+.stat-value { font-size: 28px; font-weight: 700; color: #303133; }
+.stat-label { color: #909399; font-size: 13px; }
+.muted { color: #909399; }
+.login-wrap { height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #409eff 0%, #1f6fb2 100%); }
+.login-card { width: 380px; padding: 32px; background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.18); }
+.login-title { text-align: center; margin: 0 0 24px; color: #303133; font-size: 20px; }

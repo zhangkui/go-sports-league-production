@@ -1,0 +1,81 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: gsl-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: ${APP_MYSQL_DATABASE:-league_db}
+      MYSQL_USER: ${APP_MYSQL_USER:-league_user}
+      MYSQL_PASSWORD: ${APP_MYSQL_PASSWORD:-league_pass}
+      MYSQL_AUTHENTICATION_POLICY: "caching_sha2_password::"
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot_pass"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7.4.10-alpine
+    container_name: gsl-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: gsl-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_MYSQL_HOST: mysql
+      APP_MYSQL_PORT: 3306
+      APP_MYSQL_USER: ${APP_MYSQL_USER:-league_user}
+      APP_MYSQL_PASSWORD: ${APP_MYSQL_PASSWORD:-league_pass}
+      APP_MYSQL_DATABASE: ${APP_MYSQL_DATABASE:-league_db}
+      APP_REDIS_HOST: redis
+      APP_REDIS_PORT: 6379
+      APP_JWT_SECRET: ${APP_JWT_SECRET:-change-me-in-production-please-use-long-random-string}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-admin}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-Admin123!}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-admin@league.local}
+      APP_LOGGING_LEVEL: ${APP_LOGGING_LEVEL:-info}
+      APP_LOGGING_FORMAT: ${APP_LOGGING_FORMAT:-json}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: gsl-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  mysql-data:
+  redis-data:
