@@ -1,0 +1,7 @@
+Exit code 1
+--- FAIL: TestBug002_BusinessRegression (1.70s)
+    bug002_business_regression_test.go:27: persisted current rule version = 0, want 1
+    bug002_business_regression_test.go:34: created season active rule = &models.ScoringRule{ID:0, SeasonID:3, Version:0, WinPoints:0, DrawPoints:0, LossPoints:0, Tiebreakers:"", IsActive:true, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), CreatedBy:0}, want active version 1
+FAIL
+FAIL	github.com/goxm2/sports-league/scripts/verify	2.342s
+FAIL
