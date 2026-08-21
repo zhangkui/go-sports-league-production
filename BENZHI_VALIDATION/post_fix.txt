@@ -1,0 +1,5 @@
+Command: go test ./scripts/verify -count=1 -run '^TestBug019_BusinessRegression$'
+Result: green
+Session: ea3b9dfd-1a2f-456d-9c6f-aab3330d3dc9
+Evidence: the original Post-Pre tool result returned is_error=false and the Go package result was ok in 2.330s.
+Public test changes from the audited test copy: none.

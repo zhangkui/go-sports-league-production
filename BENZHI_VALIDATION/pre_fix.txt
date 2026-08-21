@@ -1,0 +1,4 @@
+Command: go test ./scripts/verify -count=1 -run '^TestBug019_BusinessRegression$'
+Result: red
+Session: 445e4652-4121-44dc-9b3f-74acb5025b3a
+Evidence: the canceled update returned no error and a success object, then changed venue_id, match_date, start_time, status, and updated_at; no compilation, dependency, database connection, permission, or no-tests-run error occurred.

@@ -106,12 +106,8 @@ func (r *ScheduleRepo) List(ctx context.Context, seasonID int64, round int, team
 }
 
 func (r *ScheduleRepo) Update(ctx context.Context, sc *models.Schedule) error {
-	updateCtx := context.WithoutCancel(ctx)
-	_, err := r.ExecContext(updateCtx, `UPDATE schedules SET venue_id=?,match_date=?,start_time=?,status=? WHERE id=?`,
+	_, err := r.ExecContext(ctx, `UPDATE schedules SET venue_id=?,match_date=?,start_time=?,status=? WHERE id=?`,
 		sc.VenueID, sc.MatchDate, sc.StartTime, sc.Status, sc.ID)
-	if err != nil && ctx.Err() != nil {
-		return nil
-	}
 	return err
 }
 

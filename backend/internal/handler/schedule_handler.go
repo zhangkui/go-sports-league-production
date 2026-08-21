@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/goxm2/sports-league/internal/models"
@@ -72,8 +71,7 @@ func (h *ScheduleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	updateCtx := context.WithoutCancel(r.Context())
-	sc, err := h.Svc.Update(updateCtx, id, req)
+	sc, err := h.Svc.Update(r.Context(), id, req)
 	if err != nil {
 		writeErr(w, r, err)
 		return

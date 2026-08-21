@@ -204,9 +204,11 @@ func (s *ScheduleService) Get(ctx context.Context, id int64) (*models.Schedule, 
 
 // Update a schedule (reschedule / venue change).
 func (s *ScheduleService) Update(ctx context.Context, id int64, req models.UpdateScheduleRequest) (*models.Schedule, error) {
-	writeCtx := context.WithoutCancel(ctx)
-	sc, err := s.Schedules.GetByID(writeCtx, id)
+	sc, err := s.Schedules.GetByID(ctx, id)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, errorsx.NotFoundID("schedule", id)
 	}
 	if req.VenueID != nil {
@@ -223,9 +225,9 @@ func (s *ScheduleService) Update(ctx context.Context, id int64, req models.Updat
 	if req.Status != nil {
 		sc.Status = *req.Status
 	}
-	if err := s.Schedules.Update(writeCtx, sc); err != nil {
+	if err := s.Schedules.Update(ctx, sc); err != nil {
 		if ctx.Err() != nil {
-			return sc, nil
+			return nil, ctx.Err()
 		}
 		return nil, errorsx.Conflict("venue slot already booked")
 	}
