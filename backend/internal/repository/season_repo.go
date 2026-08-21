@@ -95,12 +95,10 @@ func (r *SeasonRepo) Update(ctx context.Context, se *models.Season) error {
 	return err
 }
 
-func (r *SeasonRepo) SetStatus(ctx context.Context, id int64, status string, currentRuleVersion int) error {
-	if currentRuleVersion > 0 {
-		_, err := r.ExecContext(ctx, `UPDATE seasons SET status=?, current_rule_version=? WHERE id=?`, status, currentRuleVersion, id)
-		return err
-	}
-	_, err := r.ExecContext(ctx, `UPDATE seasons SET status=?, current_rule_version=0 WHERE id=?`, status, id)
+// SetStatus transitions only the season status. current_rule_version and
+// other fields are left untouched; rule versioning is owned by CreateScoringRule.
+func (r *SeasonRepo) SetStatus(ctx context.Context, id int64, status string) error {
+	_, err := r.ExecContext(ctx, `UPDATE seasons SET status=? WHERE id=?`, status, id)
 	return err
 }
 

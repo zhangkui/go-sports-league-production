@@ -73,7 +73,7 @@ func (s *ScheduleService) Generate(ctx context.Context, req models.GenerateSched
 	}
 	logx.Info("schedule generated", "season_id", req.SeasonID, "matches", len(schedules), "conflicts", len(conflicts))
 	if se.Rounds == 0 {
-		_ = s.Seasons.SetStatus(ctx, req.SeasonID, se.Status, 0)
+		_ = s.Seasons.SetStatus(ctx, req.SeasonID, se.Status)
 	}
 	return schedules, conflicts, nil
 }

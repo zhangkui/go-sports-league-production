@@ -108,19 +108,19 @@ func (s *SeasonService) Update(ctx context.Context, id int64, req models.UpdateS
 }
 
 // ChangeStatus advances a season's lifecycle, enforcing allowed transitions.
+// Only the status column changes; current_rule_version and other fields are preserved.
 func (s *SeasonService) ChangeStatus(ctx context.Context, id int64, status string) (*models.Season, error) {
 	se, err := s.Seasons.GetByID(ctx, id)
 	if err != nil {
 		return nil, errorsx.NotFoundID("season", id)
 	}
-	if !se.AcceptsStatus(status) {
+	if !validSeasonTransition(se.Status, status) {
 		return nil, errorsx.BadRequest("invalid status transition: " + se.Status + " -> " + status)
 	}
-	if err := s.Seasons.SetStatus(ctx, id, status, 0); err != nil {
+	if err := s.Seasons.SetStatus(ctx, id, status); err != nil {
 		return nil, errorsx.Internal("status update failed")
 	}
 	se.Status = status
-	se.CurrentRuleVersion = 0
 	return se, nil
 }
 
