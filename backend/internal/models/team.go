@@ -40,7 +40,7 @@ type TeamRegistration struct {
 
 func (t Team) InitialRegistration() TeamRegistration {
 	return TeamRegistration{
-		TeamID:   0,
+		TeamID:   t.ID,
 		SeasonID: t.SeasonID,
 		Status:   t.Status,
 	}
