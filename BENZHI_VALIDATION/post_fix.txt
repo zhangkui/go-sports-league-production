@@ -1,0 +1,1 @@
+ok  	github.com/goxm2/sports-league/scripts/verify	2.374s

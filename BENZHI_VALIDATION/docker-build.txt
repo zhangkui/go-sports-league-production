@@ -1,0 +1,51 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from benzhi.Dockerfile
+#1 transferring dockerfile: 273B done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/golang:1.22-bookworm
+#2 DONE 0.2s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [1/7] FROM docker.io/library/golang:1.22-bookworm@sha256:3d699e4d15d0f8f13c9195c0632a16702b8cbdece2955af1c23b37ae5d55a253
+#4 resolve docker.io/library/golang:1.22-bookworm@sha256:3d699e4d15d0f8f13c9195c0632a16702b8cbdece2955af1c23b37ae5d55a253 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 transferring context: 5.43kB done
+#5 DONE 0.0s
+
+#6 [3/7] COPY backend/go.mod backend/go.sum ./backend/
+#6 CACHED
+
+#7 [6/7] WORKDIR /workspace/backend
+#7 CACHED
+
+#8 [4/7] RUN cd backend && go mod download
+#8 CACHED
+
+#9 [2/7] WORKDIR /workspace
+#9 CACHED
+
+#10 [5/7] COPY backend ./backend
+#10 CACHED
+
+#11 [7/7] RUN go build ./...
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers done
+#12 exporting manifest sha256:cc5630fb2fff6dfbdee33bee816571b9432a349c03704816b0fdcbfbccf455b1 done
+#12 exporting config sha256:3cde22d15fb173389c63f977d9727b20fd91021f4a0b6d8684f368732107f39f done
+#12 exporting attestation manifest sha256:069f2eee8a21a1fd95712739002c2ca931b75c2a1c26d12ba261cc9da11ee38f
+#12 exporting attestation manifest sha256:069f2eee8a21a1fd95712739002c2ca931b75c2a1c26d12ba261cc9da11ee38f 0.0s done
+#12 exporting manifest list sha256:ffb9386b6975ca8f7aeea58c38fbcd54d23e4bfeace7e902569bf0da7a6f3cba done
+#12 naming to docker.io/library/go-sports-league-production-bug008:latest done
+#12 unpacking to docker.io/library/go-sports-league-production-bug008:latest done
+#12 DONE 0.1s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/q9qvf8a68s9f77m0kknqwn1gs

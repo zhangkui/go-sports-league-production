@@ -1,0 +1,9 @@
+Exit code 1
+--- FAIL: TestBug008_BusinessRegression (1.67s)
+    bug008_business_regression_test.go:16: draft season illegally transitioned directly to completed: &models.Season{ID:3, Code:"bug008", Name:"Season bug008", Sport:"football", Division:"", TeamCount:0, Format:"round_robin", Rounds:0, StartDate:<nil>, EndDate:<nil>, RegistrationStart:<nil>, RegistrationEnd:<nil>, Status:"completed", CurrentRuleVersion:0, CreatedBy:1, CreatedAt:time.Date(2026, time.August, 21, 5, 26, 35, 289000000, time.Local), UpdatedAt:time.Date(2026, time.August, 21, 5, 26, 35, 289000000, time.Local)}
+    bug008_business_regression_test.go:21: illegal transition changed persisted state to status=completed rule_version=0
+    bug008_business_regression_test.go:29: valid transition response = status=registration rule_version=0, want registration/1
+    bug008_business_regression_test.go:34: valid transition persisted state = status=registration rule_version=0, want registration/1
+FAIL
+FAIL	github.com/goxm2/sports-league/scripts/verify	2.339s
+FAIL
