@@ -219,15 +219,22 @@ func (s *TeamService) ReviewTransfer(ctx context.Context, id, reviewerID int64, 
 	if err := oneOf("status", req.Status, models.TransferStatusApproved, models.TransferStatusRejected); err != nil {
 		return nil, err
 	}
-	if err := s.Teams.ReviewTransfer(ctx, id, reviewerID, req.Status, req.Note); err != nil {
+	// Atomically claim the terminal state: only a transfer still "pending" can be
+	// decided, so concurrent reviewers race on the guarded UPDATE instead of all
+	// succeeding. The loser gets a conflict and must NOT touch the player roster.
+	persistedStatus, err := s.Teams.ReviewTransfer(ctx, id, reviewerID, req.Status, req.Note)
+	if err != nil {
+		if errorsx.IsConflict(err) {
+			return nil, err
+		}
 		return nil, errorsx.Internal("review failed")
 	}
-	if req.Status == models.TransferStatusApproved {
-		destinationTeamID := t.ReviewDestination(req.Status)
-		if err := s.Teams.SetPlayerTeam(ctx, t.PlayerID, destinationTeamID); err != nil {
+	if persistedStatus == models.TransferStatusApproved {
+		// This caller won the claim, so the player moves to the destination team.
+		if err := s.Teams.SetPlayerTeam(ctx, t.PlayerID, t.ToTeamID); err != nil {
 			return nil, errorsx.Internal("player team update failed")
 		}
 	}
-	t.Status = req.Status
+	t.Status = persistedStatus
 	return t, nil
 }

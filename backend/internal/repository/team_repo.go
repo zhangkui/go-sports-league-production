@@ -353,7 +353,20 @@ func (r *TeamRepo) GetTransfer(ctx context.Context, id int64) (*models.Transfer,
 	return t, nil
 }
 
-func (r *TeamRepo) ReviewTransfer(ctx context.Context, id int64, reviewerID int64, status, note string) error {
-	_, err := r.ExecContext(ctx, `UPDATE transfers SET status=?,reviewer_id=?,reviewed_at=NOW(3),review_note=? WHERE id=?`, status, reviewerID, note, id)
-	return err
+// ReviewTransfer atomically claims the transfer's terminal state. The update is
+// guarded by a status predicate so that only one concurrent reviewer can move the
+// transfer out of "pending"; any other request affects zero rows and reports the
+// transfer as already decided (ErrConflict). Returns the terminal status that was
+// persisted, so the caller knows whether the move itself was already applied.
+func (r *TeamRepo) ReviewTransfer(ctx context.Context, id int64, reviewerID int64, status, note string) (string, error) {
+	res, err := r.ExecContext(ctx, `UPDATE transfers SET status=?,reviewer_id=?,reviewed_at=NOW(3),review_note=? WHERE id=? AND status=?`,
+		status, reviewerID, note, id, models.TransferStatusPending)
+	if err != nil {
+		return "", err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return "", errorsx.Conflict("transfer is no longer pending")
+	}
+	return status, nil
 }
