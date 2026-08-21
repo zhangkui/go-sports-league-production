@@ -1,0 +1,9 @@
+Exit code 1
+--- FAIL: TestBug018_BusinessRegression (1.91s)
+    bug018_business_regression_test.go:192: visible target-season conflict count = 1, want 3; conflicts=[]models.ScheduleConflict{models.ScheduleConflict{ID:1, ScheduleID:16, ConflictType:"venue", Description:"venue already booked", DetectedAt:time.Date(2026, time.August, 21, 9, 48, 2, 52000000, time.Local)}}
+    bug018_business_regression_test.go:209: NULL-description team conflict missing; conflicts=[]models.ScheduleConflict{models.ScheduleConflict{ID:1, ScheduleID:16, ConflictType:"venue", Description:"venue already booked", DetectedAt:time.Date(2026, time.August, 21, 9, 48, 2, 52000000, time.Local)}}
+    bug018_business_regression_test.go:209: NULL-description round conflict missing; conflicts=[]models.ScheduleConflict{models.ScheduleConflict{ID:1, ScheduleID:16, ConflictType:"venue", Description:"venue already booked", DetectedAt:time.Date(2026, time.August, 21, 9, 48, 2, 52000000, time.Local)}}
+    bug018_business_regression_test.go:225: other-season conflict count = 0, want 1; conflicts=[]models.ScheduleConflict{}
+FAIL
+FAIL	github.com/goxm2/sports-league/scripts/verify	2.535s
+FAIL

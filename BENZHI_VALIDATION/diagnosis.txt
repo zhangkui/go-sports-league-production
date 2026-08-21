@@ -1,0 +1,8 @@
+Result: PASS
+Mode: read-only diagnosis
+Repository modifications: none
+Trial test access: none
+verify_cmds access: none
+Answer material access: none
+Located call chain: ScheduleHandler.ListConflicts -> ScheduleService.ListConflicts -> ScheduleRepo.ListConflicts -> ScheduleConflict.ApplyNullableDescription
+Failure mechanism: a NULL optional description clears ConflictType during hydration, then the service filters the record because its type is empty.
