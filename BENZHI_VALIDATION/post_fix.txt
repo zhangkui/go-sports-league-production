@@ -1,0 +1,5 @@
+Command: go test ./scripts/verify -count=1 -run '^TestBug010_BusinessRegression$'
+Result: green
+Session: cb2bc589-87d0-4470-83f0-235d2f54ba29
+Evidence: original Post-Pre tool result returned is_error=false and `ok github.com/goxm2/sports-league/scripts/verify 0.713s`.
+Public test changes from base commit: none.

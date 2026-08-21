@@ -1,0 +1,6 @@
+Go module version: go 1.22
+Local toolchain: go1.26.1 windows/amd64
+Target CLI: Claude Code 2.1.228
+Model: model_hub/glm-52-coding
+Docker platform: linux/amd64
+Docker image: go-sports-league-production-bug010:latest

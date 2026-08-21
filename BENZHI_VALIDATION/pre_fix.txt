@@ -1,0 +1,5 @@
+Command: go test ./scripts/verify -count=1 -run '^TestBug010_BusinessRegression$'
+Result: red
+Session: 507c3263-3e00-44c0-8bd1-51fe6428c97b
+Evidence: target business assertions reported fabricated zero-value active rules for missing and cancelled queries, and HTTP 200/code 0 instead of 404/code 40400.
+Infrastructure: no compilation, dependency, migration, MySQL connection, permission, or no-tests-run error.
