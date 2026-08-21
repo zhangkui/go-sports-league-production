@@ -64,7 +64,11 @@ func (h *VenueHandler) Update(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &req) {
 		return
 	}
-	req.MaterializeMissingFields()
+	// Partial update: only fields present in the JSON body are changed.
+	// Pointer fields stay nil when omitted, and VenueService skips nil
+	// fields so the existing values are preserved. Materializing nil
+	// pointers into zero-value pointers here would overwrite omitted
+	// fields with empty/zero values, breaking partial updates.
 	v, err := h.Svc.Update(r.Context(), id, req)
 	if err != nil {
 		writeErr(w, r, err)
