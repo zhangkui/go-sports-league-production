@@ -1,0 +1,4 @@
+Command: go test ./scripts/verify -count=1 -run '^TestBug017_BusinessRegression$'
+Result: red
+Session: 0bccda98-19a4-4a8e-bec3-24a5d7217f48
+Evidence: the target duplicate-pairing and persisted-round assertions failed while the two-team legal control passed; no compilation, dependency, database connection, permission, or no-tests-run error occurred.

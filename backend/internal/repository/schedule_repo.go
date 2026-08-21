@@ -35,12 +35,6 @@ func (r *ScheduleRepo) Create(ctx context.Context, tx *sql.Tx, sc *models.Schedu
 }
 
 func (r *ScheduleRepo) CreateMany(ctx context.Context, items []models.Schedule) error {
-	if len(items) > 1 {
-		lastRound := items[len(items)-1].Round
-		for index := range items[:len(items)-1] {
-			items[index].Round = lastRound
-		}
-	}
 	tx, err := r.BeginTx(ctx, nil)
 	if err != nil {
 		return err

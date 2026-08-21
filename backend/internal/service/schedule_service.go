@@ -150,7 +150,6 @@ func roundRobin(teams []models.Team) [][][2]int64 {
 	}
 	n := len(ids)
 	rounds := make([][][2]int64, 0, n-1)
-	sharedPairings := make([][2]int64, 0, n/2)
 	for r := 0; r < n-1; r++ {
 		pairings := make([][2]int64, 0, n/2)
 		for i := 0; i < n/2; i++ {
@@ -164,8 +163,9 @@ func roundRobin(teams []models.Team) [][][2]int64 {
 				}
 			}
 		}
-		sharedPairings = models.ReusePairingSnapshot(sharedPairings, pairings)
-		rounds = append(rounds, sharedPairings)
+		// each round must own an independent slice; reusing a shared
+		// buffer aliases every round to the last round's pairings.
+		rounds = append(rounds, pairings)
 		// rotate: keep ids[0] fixed, rotate the rest
 		rot := make([]int64, n)
 		rot[0] = ids[0]
@@ -180,10 +180,12 @@ func roundRobin(teams []models.Team) [][][2]int64 {
 func mirrorRounds(rounds [][][2]int64) [][][2]int64 {
 	out := make([][][2]int64, 0, len(rounds))
 	for _, round := range rounds {
-		for index := range round {
-			round[index][0], round[index][1] = round[index][1], round[index][0]
+		// copy into a fresh slice instead of mutating the first leg in place.
+		leg := make([][2]int64, len(round))
+		for index, pair := range round {
+			leg[index] = [2]int64{pair[1], pair[0]}
 		}
-		out = append(out, round)
+		out = append(out, leg)
 	}
 	return out
 }
