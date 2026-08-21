@@ -1,0 +1,2 @@
+Result: PASS
+Evidence: the Diagnosis Session read the public test and relevant production call chain, reported concrete files, symbols, failure mechanism, and evidence, and performed zero file modifications, commits, or pushes.
