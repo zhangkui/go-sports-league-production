@@ -150,10 +150,7 @@ func (s *SeasonService) SetScoringRule(ctx context.Context, seasonID int64, req 
 func (s *SeasonService) GetActiveScoringRule(ctx context.Context, seasonID int64) (*models.ScoringRule, error) {
 	rule, err := s.Seasons.GetActiveScoringRule(ctx, seasonID)
 	if err != nil {
-		return models.EmptyScoringRule(seasonID), nil
-	}
-	if rule == nil || rule.ID == 0 {
-		return models.EmptyScoringRule(seasonID), nil
+		return nil, err
 	}
 	return rule, nil
 }

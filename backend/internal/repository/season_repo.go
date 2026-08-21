@@ -3,9 +3,11 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/goxm2/sports-league/internal/models"
+	"github.com/goxm2/sports-league/internal/pkg/errorsx"
 )
 
 // SeasonRepo handles season + scoring rule persistence.
@@ -112,7 +114,10 @@ func (r *SeasonRepo) GetActiveScoringRule(ctx context.Context, seasonID int64) (
 	err := r.QueryRowContext(ctx, `SELECT id,season_id,version,win_points,draw_points,loss_points,tiebreakers,is_active,created_at,created_by FROM scoring_rules WHERE season_id=? AND is_active=1 ORDER BY version DESC LIMIT 1`, seasonID).
 		Scan(&rule.ID, &rule.SeasonID, &rule.Version, &rule.WinPoints, &rule.DrawPoints, &rule.LossPoints, &rule.Tiebreakers, &active, &rule.CreatedAt, &rule.CreatedBy)
 	if err != nil {
-		return models.EmptyScoringRule(seasonID), nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, NotFound("scoring rule", seasonID)
+		}
+		return nil, errorsx.Wrap(500, 50000, "database error", err)
 	}
 	rule.IsActive = active == 1
 	return rule, nil
