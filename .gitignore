@@ -4,7 +4,8 @@ dist/
 frontend/dist/
 *.exe
 *.exe~
-server
+/server
+/backend/server
 /out/
 
 # 本地环境与临时
