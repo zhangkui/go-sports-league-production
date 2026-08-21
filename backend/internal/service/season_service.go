@@ -36,24 +36,32 @@ func (s *SeasonService) Create(ctx context.Context, req models.CreateSeasonReque
 	se := &models.Season{
 		Code: req.Code, Name: req.Name, Sport: req.Sport, Division: req.Division,
 		TeamCount: req.TeamCount, Format: defaultStr(req.Format, "round_robin"),
-		Status: models.SeasonStatusDraft, CurrentRuleVersion: 0, CreatedBy: creatorID,
+		Status: models.SeasonStatusDraft, CurrentRuleVersion: 1, CreatedBy: creatorID,
 	}
 	se.StartDate = parseDate(req.StartDate)
 	se.EndDate = parseDate(req.EndDate)
 	se.RegistrationStart = parseDate(req.RegistrationStart)
 	se.RegistrationEnd = parseDate(req.RegistrationEnd)
-	if err := s.Seasons.Create(ctx, se); err != nil {
-		return nil, err
+	// Seed the season together with its first scoring rule + snapshot in one
+	// atomic transaction so the season never persists without an active rule.
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, errorsx.Internal("tx begin failed")
 	}
-	// seed default scoring rule v1
+	if err := s.Seasons.CreateTx(ctx, tx, se); err != nil {
+		return nil, rollback(tx, err)
+	}
 	rule := &models.ScoringRule{
 		SeasonID: se.ID, Version: 1, WinPoints: 3, DrawPoints: 1, LossPoints: 0,
 		Tiebreakers: "points,goal_diff,goals_for,head_to_head,fair_play", CreatedBy: creatorID,
 	}
-	if err := s.Seasons.CreateScoringRule(ctx, nil, rule); err != nil {
-		return nil, err
+	if err := s.Seasons.CreateScoringRule(ctx, tx, rule); err != nil {
+		return nil, rollback(tx, err)
 	}
-	se.CurrentRuleVersion = 1
+	if err := tx.Commit(); err != nil {
+		return nil, errorsx.Internal("commit failed")
+	}
+	se.CurrentRuleVersion = rule.Version
 	return se, nil
 }
 

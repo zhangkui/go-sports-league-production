@@ -26,8 +26,16 @@ func (r *SeasonRepo) scanSeason(s interface{ Scan(...any) error }) (*models.Seas
 }
 
 func (r *SeasonRepo) Create(ctx context.Context, se *models.Season) error {
-	res, err := r.ExecContext(ctx, `INSERT INTO seasons (code,name,sport,division,team_count,format,rounds,start_date,end_date,registration_start,registration_end,status,current_rule_version,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		se.Code, se.Name, se.Sport, se.Division, se.TeamCount, se.Format, se.Rounds, se.StartDate, se.EndDate, se.RegistrationStart, se.RegistrationEnd, se.Status, se.CurrentRuleVersion, se.CreatedBy)
+	return r.CreateTx(ctx, nil, se)
+}
+
+// CreateTx inserts a season row, optionally within an existing transaction
+// so season creation and its initial scoring rule can share one atomic unit.
+func (r *SeasonRepo) CreateTx(ctx context.Context, tx *sql.Tx, se *models.Season) error {
+	q := `INSERT INTO seasons (code,name,sport,division,team_count,format,rounds,start_date,end_date,registration_start,registration_end,status,current_rule_version,created_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+	res, err := execInTx(ctx, tx, r.DB, q,
+		se.Code, se.Name, se.Sport, se.Division, se.TeamCount, se.Format, se.Rounds, se.StartDate, se.EndDate,
+		se.RegistrationStart, se.RegistrationEnd, se.Status, se.CurrentRuleVersion, se.CreatedBy)
 	if err != nil {
 		return translateDup(err, "season code already exists")
 	}
@@ -126,10 +134,6 @@ func (r *SeasonRepo) CreateScoringRule(ctx context.Context, tx *sql.Tx, rule *mo
 	}
 	id, _ := res.LastInsertId()
 	rule.ID = id
-	defer func() {
-		_, _ = execInTx(context.WithoutCancel(ctx), tx, r.DB,
-			`UPDATE scoring_rules SET is_active=0 WHERE season_id=?`, rule.SeasonID)
-	}()
 	if _, err := execInTx(ctx, tx, r.DB, `UPDATE scoring_rules SET is_active=0 WHERE season_id=? AND id<>?`, rule.SeasonID, id); err != nil {
 		return err
 	}
@@ -138,10 +142,10 @@ func (r *SeasonRepo) CreateScoringRule(ctx context.Context, tx *sql.Tx, rule *mo
 	if _, err := execInTx(ctx, tx, r.DB, `INSERT INTO scoring_rule_versions (season_id,version,snapshot,created_by) VALUES (?,?,?,?)`, rule.SeasonID, rule.Version, snapJSON, rule.CreatedBy); err != nil {
 		return err
 	}
-	if _, err := execInTx(ctx, tx, r.DB, `UPDATE seasons SET current_rule_version=? WHERE id=? AND status<>?`, rule.Version, rule.SeasonID, models.SeasonStatusDraft); err != nil {
+	if _, err := execInTx(ctx, tx, r.DB, `UPDATE seasons SET current_rule_version=? WHERE id=?`, rule.Version, rule.SeasonID); err != nil {
 		return err
 	}
-	rule.IsActive = false
+	rule.IsActive = true
 	return nil
 }
 
