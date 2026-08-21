@@ -1,0 +1,4 @@
+Command: go test ./scripts/verify -count=1 -run '^TestBug011_BusinessRegression$'
+Result: red
+Session: 98579922-d878-4fc4-85d3-c5fc5ad99a28
+Evidence: target business assertion reached with no compilation, dependency, database connection, permission, or no-tests-run error.
