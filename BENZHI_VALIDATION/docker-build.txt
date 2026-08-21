@@ -1,0 +1,5 @@
+Command: docker build --platform linux/amd64 -f benzhi.Dockerfile -t go-sports-league-production-bug014:latest .
+Result: PASS
+Build stage: RUN go build ./... completed successfully.
+Image: go-sports-league-production-bug014:latest
+Platform: linux/amd64
