@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/goxm2/sports-league/internal/models"
 )
@@ -65,13 +63,18 @@ func (r *MatchRepo) scanMatch(s interface{ Scan(...any) error }) (*models.Match,
 	return m, nil
 }
 
-// EnsureMatchForSchedule lazily creates a match row from its schedule.
+// EnsureForSchedule lazily creates a match row from its schedule.
+//
+// Concurrency: the UNIQUE index on matches.schedule_id is the guard. The
+// initial GetBySchedule is only a fast path for the already-materialised case;
+// it is not atomic. Under a race, two callers both miss it and both attempt
+// the INSERT — exactly one wins. The loser observes a duplicate-key error and
+// re-reads the row the winner persisted, so every concurrent caller returns the
+// same match (same ID) instead of a fabricated object that has no row behind it.
 func (r *MatchRepo) EnsureForSchedule(ctx context.Context, sc *models.Schedule) (*models.Match, error) {
-	existing, err := r.GetBySchedule(ctx, sc.ID)
-	if err == nil && existing != nil {
+	if existing, err := r.GetBySchedule(ctx, sc.ID); err == nil && existing != nil {
 		return existing, nil
 	}
-	time.Sleep(120 * time.Millisecond)
 	m := &models.Match{
 		ScheduleID: sc.ID, SeasonID: sc.SeasonID, HomeTeamID: sc.HomeTeamID, AwayTeamID: sc.AwayTeamID,
 		VenueID: sc.VenueID, MatchDate: sc.MatchDate, StartTime: sc.StartTime,
@@ -80,8 +83,12 @@ func (r *MatchRepo) EnsureForSchedule(ctx context.Context, sc *models.Schedule) 
 	res, err := r.ExecContext(ctx, `INSERT INTO matches (schedule_id,season_id,home_team_id,away_team_id,venue_id,match_date,start_time,status,confirm_status) VALUES (?,?,?,?,?,?,?,?,?)`,
 		m.ScheduleID, m.SeasonID, m.HomeTeamID, m.AwayTeamID, m.VenueID, m.MatchDate, m.StartTime, m.Status, m.ConfirmStatus)
 	if err != nil {
-		if strings.Contains(err.Error(), "Duplicate entry") {
-			return &models.Match{ScheduleID: sc.ID, SeasonID: sc.SeasonID, HomeTeamID: sc.HomeTeamID, AwayTeamID: sc.AwayTeamID, VenueID: sc.VenueID, MatchDate: sc.MatchDate, StartTime: sc.StartTime, Status: models.MatchStatusScheduled, ConfirmStatus: models.ConfirmStatusPending}, nil
+		if isDuplicateKey(err) {
+			// Lost the INSERT race to another request; return the row it persisted
+			// so this caller holds the same persisted ID rather than a fabricated one.
+			if existing, gerr := r.GetBySchedule(ctx, sc.ID); gerr == nil && existing != nil {
+				return existing, nil
+			}
 		}
 		return nil, translateDup(err, "match already exists for this schedule")
 	}
