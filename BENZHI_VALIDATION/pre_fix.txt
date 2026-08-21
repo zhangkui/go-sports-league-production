@@ -1,0 +1,59 @@
+Exit code 1
+go: downloading github.com/redis/go-redis/v9 v9.7.0
+go: downloading github.com/go-sql-driver/mysql v1.8.1
+go: downloading github.com/spf13/viper v1.19.0
+go: downloading github.com/google/uuid v1.6.0
+go: downloading github.com/golang-jwt/jwt/v5 v5.2.1
+go: downloading golang.org/x/crypto v0.31.0
+go: downloading go.uber.org/zap v1.27.0
+go: downloading github.com/hashicorp/hcl v1.0.0
+go: downloading github.com/sagikazarmark/slog-shim v0.1.0
+go: downloading github.com/fsnotify/fsnotify v1.7.0
+go: downloading github.com/spf13/cast v1.6.0
+go: downloading github.com/spf13/pflag v1.0.5
+go: downloading github.com/mitchellh/mapstructure v1.5.0
+go: downloading gopkg.in/ini.v1 v1.67.0
+go: downloading github.com/spf13/afero v1.11.0
+go: downloading github.com/magiconair/properties v1.8.7
+go: downloading github.com/pelletier/go-toml/v2 v2.2.2
+go: downloading gopkg.in/yaml.v3 v3.0.1
+go: downloading github.com/subosito/gotenv v1.6.0
+go: downloading filippo.io/edwards25519 v1.1.0
+go: downloading golang.org/x/text v0.21.0
+go: downloading github.com/cespare/xxhash/v2 v2.2.0
+go: downloading github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
+go: downloading golang.org/x/sys v0.28.0
+go: downloading go.uber.org/multierr v1.10.0
+--- FAIL: TestBug001_BusinessRegression (2.11s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 0 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 0 and 5
+--- FAIL: TestBug001_BusinessRegression (2.04s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 0 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 0 and 5
+--- FAIL: TestBug001_BusinessRegression (1.80s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 0 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 0 and 5
+--- FAIL: TestBug001_BusinessRegression (1.84s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 1 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 5 and 0
+--- FAIL: TestBug001_BusinessRegression (1.98s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 1 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 5 and 0
+--- FAIL: TestBug001_BusinessRegression (1.92s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 1 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 5 and 0
+--- FAIL: TestBug001_BusinessRegression (1.81s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 1 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 5 and 0
+--- FAIL: TestBug001_BusinessRegression (1.85s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 0 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 0 and 5
+--- FAIL: TestBug001_BusinessRegression (1.98s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 1 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 5 and 0
+--- FAIL: TestBug001_BusinessRegression (1.82s)
+    match_materialisation_regression_test.go:38: concurrent materialisation 0 returned an unpersisted match: &models.Match{ID:0, ScheduleID:16, SeasonID:3, HomeTeamID:7, AwayTeamID:8, VenueID:3, MatchDate:time.Date(2026, time.September, 1, 0, 0, 0, 0, time.Local), StartTime:"10:00:00", HomeScore:(*int)(nil), AwayScore:(*int)(nil), HomeHalfScore:(*int)(nil), AwayHalfScore:(*int)(nil), RefereeID:(*int64)(nil), RecorderID:(*int64)(nil), DurationMin:(*int)(nil), Status:"scheduled", ConfirmStatus:"pending", ConfirmedBy:(*int64)(nil), ConfirmedAt:<nil>, CreatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC), UpdatedAt:time.Date(1, time.January, 1, 0, 0, 0, 0, time.UTC)}
+    match_materialisation_regression_test.go:42: concurrent callers observed different match ids: 0 and 5
+FAIL
+FAIL	github.com/goxm2/sports-league/scripts/verify	20.188s
+FAIL
