@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/goxm2/sports-league/internal/models"
-	"github.com/goxm2/sports-league/internal/pkg/errorsx"
 )
 
 // TeamRepo handles team + registration + player + transfer persistence.
@@ -196,11 +195,10 @@ func (r *TeamRepo) CreatePlayer(ctx context.Context, pl *models.Player) error {
 	res, err := r.ExecContext(ctx, `INSERT INTO players (team_id,season_id,name,number,position,birth_date,height_cm,weight_kg,status,eligibility) VALUES (?,?,?,?,?,?,?,?,?,?)`,
 		pl.TeamID, pl.SeasonID, pl.Name, pl.Number, pl.Position, pl.BirthDate, pl.HeightCM, pl.WeightKG, pl.Status, pl.Eligibility)
 	if err != nil {
-		translated := translateDup(err, "player number already taken in team")
-		if errorsx.IsConflict(translated) {
-			return errorsx.Wrap(500, 50000, "player roster write failed", translated)
-		}
-		return translated
+		// A duplicate (team_id, number) violates uk_players_team_number and must
+		// surface as a 409 business conflict so callers can classify it; wrapping
+		// it as a 500 hides the conflict behind a generic internal error.
+		return translateDup(err, "player number already taken in team")
 	}
 	id, _ := res.LastInsertId()
 	pl.ID = id
